@@ -33,3 +33,34 @@ void init_SA_test()
         printf("Failed to load B matrix 0 data into HASH RAM.\n");
     }
 }
+
+void init_AS_test()
+{
+    test_file = "./simdata/raminit/AStest/A_buffer.bin";
+    if(load_bin_to_ram_protect(test_file, A_buffer_1, BUFFER_SIZE, 0))
+    {
+        printf("Loaded test data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load test data into HASH RAM.\n");
+    }
+    test_file = "./simdata/raminit/AStest/S.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
+    test_file = "./simdata/raminit/AStest/B_matrix.bin";
+    if(load_bin_to_ram_protect(test_file, sp_ram, RAM_SIZE, 1344*8))
+    {
+        printf("Loaded B matrix 0 data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load B matrix 0 data into HASH RAM.\n");
+    }
+}
