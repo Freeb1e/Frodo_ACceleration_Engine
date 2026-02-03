@@ -122,6 +122,22 @@ assign bram_rdata_HASH = bram_rdata_HASH1;
 //==========================
 assign mem_mode = (ctrl_mode_REG == SA)? 3'd2:3'd1;
 always_comb begin
+    addr_HASH_systolic = 32'd0;
+    addr_sp_1 = 32'd0;
+    addr_sp_2 = 32'd0;
+    addr_dp_1 = 32'd0;
+    addr_dp_2 = 32'd0;
+    wen_sp_1 = 1'b0;
+    wen_sp_2 = 1'b0;
+    wen_dp_1 = 1'b0;
+    wen_dp_2 = 1'b0;
+    bram_wdata_sp_1 = 64'd0;
+    bram_wdata_sp_2 = 64'd0;
+    bram_wdata_dp_1 = 64'd0;
+    bram_wdata_dp_2 = 64'd0;
+    bram_data_1 = 64'd0;
+    bram_data_2 = 64'd0;
+    bram_data_3 = 64'd0;
     case(current_state)
         SA_LOADWEIGHT:begin
             //从dp中读取data放入
@@ -138,14 +154,34 @@ always_comb begin
             wen_dp_2  = save_wen;
             bram_data_3 = bram_rdata_HASH;
         end
-        // AS_CALC:begin
-        //     case(ctrl_mode_REG)
-        //     endcase
-        // end
-        // AS_SAVE:begin
-        //     case(ctrl_mode_REG)
-        //     endcase
-        // end
+        AS_CALC:begin
+            if(ctrl_mode_REG == AS)begin
+                addr_HASH_systolic = bram_addr_1;
+                addr_sp_1 = bram_addr_2;
+                bram_data_1 = bram_rdata_HASH;
+                bram_data_2 = bram_rdata_sp_1;
+            end else begin
+                addr_dp_1 = bram_addr_1;
+                addr_sp_1 = bram_addr_2;
+                bram_data_1 = bram_rdata_dp_1;
+                bram_data_2 = bram_rdata_sp_1;
+            end
+        end
+        AS_SAVE:begin
+            if(ctrl_mode_REG == AS)begin
+                addr_sp_1 = bram_addr_1;
+                addr_sp_2 = bram_addr_2;
+                bram_wdata_sp_2 = bram_savedata;
+                bram_data_1 = bram_rdata_sp_1;
+                wen_sp_2 = save_wen;
+            end else begin
+                addr_dp_1 = bram_addr_1;
+                addr_dp_2 = bram_addr_2;
+                bram_wdata_dp_2 = bram_savedata;
+                bram_data_1 = bram_rdata_dp_1;
+                wen_dp_2 = save_wen;
+            end
+         end
         default: begin
         end
     endcase
