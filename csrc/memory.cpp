@@ -7,7 +7,7 @@ uint8_t sp_ram[RAM_SIZE] = {0}; // 对应 bramid = 0
 uint8_t dp_ram[RAM_SIZE] = {0};            // 对应 bramid = 1
 uint8_t A_buffer_1[BUFFER_SIZE] = {0}; //对应 bramid = 2
 uint8_t A_buffer_2[BUFFER_SIZE] = {0}; //对应 bramid = 3
-
+uint8_t PC_ROM[PC_ROM_SIZE] = {0};
 extern "C" {
 
 static uint8_t* get_ram_info(int bramid, uint32_t* size_out) {
@@ -26,6 +26,9 @@ static uint8_t* get_ram_info(int bramid, uint32_t* size_out) {
     else if (bramid == 3) {
         *size_out = BUFFER_SIZE;
         return A_buffer_2;
+    } else if(bramid==4){
+        *size_out = PC_ROM_SIZE;
+        return PC_ROM;
     }
     
     *size_out = 0;
@@ -35,7 +38,7 @@ static uint8_t* get_ram_info(int bramid, uint32_t* size_out) {
 void pmem_read(int raddr, int bramid, long long* rdata) {
     uint32_t max_size = 0;
     uint8_t* mem = get_ram_info(bramid, &max_size);
-    uint32_t addr = (uint32_t)raddr>>6;
+    uint32_t addr = (uint32_t)raddr>>3;
     addr = addr << 3; // 64-bit aligned
     if (mem == nullptr || (addr + 8 > max_size)) {
         *rdata = 0; 
@@ -60,7 +63,7 @@ void pmem_write(int waddr, int bramid, long long wdata, char wmask) {
     uint32_t max_size = 0;
     uint8_t* mem = get_ram_info(bramid, &max_size);
     
-    uint32_t addr = (uint32_t)waddr>>6;
+    uint32_t addr = (uint32_t)waddr>>3;
     addr = addr << 3; // 64-bit aligned
     uint64_t data = (uint64_t)wdata;
     uint8_t  mask = (uint8_t)wmask;
@@ -220,5 +223,72 @@ bool dump_ram_to_matrix(const char* filename, const uint8_t* ram_ptr, uint32_t m
 
     fclose(fp);
     printf("[DPI Info] Dumped %dx%d Matrix to %s (Offset: 0x%x)\n", rows, cols, filename, start_offset);
+    return true;
+}
+
+bool load_bin_to_ram_protect(const char* filename, uint8_t* ram_ptr, uint32_t max_size, uint32_t offset) {
+    // 1. 打开文件
+    FILE* fp = fopen(filename, "rb");
+    if (fp == nullptr) {
+        printf("[DPI Error] Cannot open file: %s\n", filename);
+        return false;
+    }
+
+    // 2. 获取文件大小
+    fseek(fp, 0, SEEK_END);
+    long file_size = ftell(fp);
+    rewind(fp);
+
+    if (file_size < 0) {
+        printf("[DPI Error] Failed to get file size: %s\n", filename);
+        fclose(fp);
+        return false;
+    }
+
+    // 3. 基础越界检查：如果起始偏移本身就在内存之外，无法写入任何数据
+    if (offset >= max_size) {
+        printf("[DPI Error] Offset 0x%x is out of RAM range (RAM Size: 0x%x)\n", offset, max_size);
+        fclose(fp);
+        return false;
+    }
+
+    // 4. 计算实际需要读取的大小 (截断逻辑)
+    // 计算从 offset 开始，内存还剩多少空间
+    long available_space = (long)max_size - (long)offset;
+    
+    size_t bytes_to_read = 0;
+    bool is_truncated = false;
+
+    // 如果文件大小 超过了 剩余空间，则截断
+    if (file_size > available_space) {
+        bytes_to_read = (size_t)available_space;
+        is_truncated = true;
+        printf("[DPI Warning] File %s is too large! Truncating load.\n", filename);
+        printf("              (File: %ld bytes, Available: %ld bytes). Only loading first %ld bytes.\n", 
+               file_size, available_space, available_space);
+    } else {
+        // 否则完全读取
+        bytes_to_read = (size_t)file_size;
+    }
+
+    // 5. 读取数据
+    // 注意：这里读取的长度变成了 bytes_to_read，而不是 file_size
+    size_t result = fread(ram_ptr + offset, 1, bytes_to_read, fp);
+    
+    if (result != bytes_to_read) {
+        printf("[DPI Error] Reading file failed. Expected %zu bytes, got %zu\n", bytes_to_read, result);
+        fclose(fp);
+        return false;
+    }
+
+    // 6. 收尾
+    fclose(fp);
+    
+    if (is_truncated) {
+        printf("[DPI Info] PARTIALLY Loaded %s to RAM @ Offset 0x%x (Truncated to %zu bytes)\n", filename, offset, bytes_to_read);
+    } else {
+        printf("[DPI Info] Fully Loaded %s to RAM @ Offset 0x%x (Size: %ld bytes)\n", filename, offset, file_size);
+    }
+    
     return true;
 }

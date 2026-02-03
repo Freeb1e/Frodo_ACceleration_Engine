@@ -140,16 +140,16 @@ module mul_top(
     always_comb begin
         case(current_state)
         AS_CALC: begin
-            set_addr=bram_addr_2[5];
+            set_addr=bram_addr_2[2];
         end
         AS_SAVE: begin
-            set_addr=bram_addr_1[5];
+            set_addr=bram_addr_1[2];
         end
         SA_LOADWEIGHT: begin
-            set_addr=bram_addr_1[5];
+            set_addr=bram_addr_1[2];
         end
         SA_CALC: begin
-            set_addr=bram_addr_1[5];
+            set_addr=bram_addr_1[2];
         end
         default:
         set_addr=1'b0;

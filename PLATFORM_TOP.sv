@@ -1,4 +1,4 @@
-module platform_top(
+module PLATFORM_TOP(
     input logic clk,
     input logic rst_n,
     input logic calc_init,

@@ -65,8 +65,8 @@ module mem_ctrl(
             if(calc_init) begin
                 /* verilator lint_off WIDTHEXPAND */
                 matrix_size_reg<=MATRIX_SIZE;
-                Frodo_standard_A <= MATRIX_SIZE * 32'd64;
-                Frodo_standard_SE <= MATRIX_SIZE * 32'd32;
+                Frodo_standard_A <= MATRIX_SIZE * 32'd8;
+                Frodo_standard_SE <= MATRIX_SIZE * 32'd4;
                 // BASE_ADDR_B_REG <= BASE_ADDR_B;
                 // BASE_ADDR_S_REG <= BASE_ADDR_S;
                 // BASE_ADDR_HASH_REG <= BASE_ADDR_HASH;
@@ -202,14 +202,14 @@ module mem_ctrl(
             AS_CALC: begin
                 // addr_HASH =BASE_ADDR_HASH_REG+cnt_line*32'd64+count_4*Frodo_standard_A;
                 // addr_sb = BASE_ADDR_S_REG+cnt_line*32'd32+count_4*Frodo_standard_SE;
-                bram_addr_1 = BASE_ADDR_LEFT_REG+cnt_line*32'd64+count_4*Frodo_standard_A;
-                bram_addr_2 = BASE_ADDR_RIGHT_REG+cnt_line*32'd32+count_4*Frodo_standard_SE;
+                bram_addr_1 = BASE_ADDR_LEFT_REG+cnt_line*32'd8+count_4*Frodo_standard_A;
+                bram_addr_2 = BASE_ADDR_RIGHT_REG+cnt_line*32'd4+count_4*Frodo_standard_SE;
             end
             AS_SAVE: begin
                 // addr_sb = BASE_ADDR_B_REG +save_bias*16*8;
                 // addr_sb_2 = BASE_ADDR_B_REG +(save_bias_w)*16*8;
-                bram_addr_1 = BASE_ADDR_ADDSRC_REG + save_bias*16*8;
-                bram_addr_2 = BASE_ADDR_SAVE_REG + (save_bias_w)*16*8;
+                bram_addr_1 = BASE_ADDR_ADDSRC_REG + save_bias*16;
+                bram_addr_2 = BASE_ADDR_SAVE_REG + (save_bias_w)*16;
             end
             SA_LOADWEIGHT: begin
                 // addr_sb = BASE_ADDR_S + (2'd3-count_4)*Frodo_standard_SE;
@@ -222,12 +222,12 @@ module mem_ctrl(
                 // else
                 //     addr_sb_2 = BASE_ADDR_B_REG + (cnt_line-32'd5) * 32'd64 + save_bias_SA*Frodo_standard_A;
                 // addr_sb=BASE_ADDR_B_REG + (cnt_line-32'd4) * 32'd64 + count_4*Frodo_standard_A;
-                bram_addr_3 = BASE_ADDR_RIGHT_REG + cnt_line*32'd64 + count_4*Frodo_standard_A;
+                bram_addr_3 = BASE_ADDR_RIGHT_REG + cnt_line*32'd8 + count_4*Frodo_standard_A;
                 if(count_4==2 || count_4 == 3)
-                    bram_addr_2 = BASE_ADDR_SAVE_REG + (cnt_line-32'd4) * 32'd64 + save_bias_SA*Frodo_standard_A;
+                    bram_addr_2 = BASE_ADDR_SAVE_REG + (cnt_line-32'd4) * 32'd8 + save_bias_SA*Frodo_standard_A;
                 else
-                    bram_addr_2 = BASE_ADDR_SAVE_REG + (cnt_line-32'd5) * 32'd64 + save_bias_SA*Frodo_standard_A;
-                bram_addr_1 = BASE_ADDR_ADDSRC_REG + (cnt_line-32'd4) * 32'd64 + count_4*Frodo_standard_A;
+                    bram_addr_2 = BASE_ADDR_SAVE_REG + (cnt_line-32'd5) * 32'd8 + save_bias_SA*Frodo_standard_A;
+                bram_addr_1 = BASE_ADDR_ADDSRC_REG + (cnt_line-32'd4) * 32'd8 + count_4*Frodo_standard_A;
             end
             default: begin
                 bram_addr_1 = 32'd0;
