@@ -2,6 +2,8 @@
 VERILOG = $(wildcard vsrc/*.sv)
 VERILOG += $(wildcard vsrc/*.v)
 VERILOG += $(wildcard vsrc/SYSTOLIC/*.sv)
+VERILOG += $(wildcard vsrc/SHA/*.sv)
+VERILOG += $(wildcard vsrc/SHA/*.v)
 CSOURCE=$(shell find csrc -name "*.cpp" -not -path "*/tools/capstone/repo/*")
 CSOURCE+=$(shell find csrc -name "*.c" -not -path "*/tools/capstone/repo/*")
 CSOURCE+=$(shell find csrc -name "*.cc" -not -path "*/tools/capstone/repo/*")

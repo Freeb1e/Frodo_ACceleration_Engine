@@ -50,11 +50,12 @@ int main(int argc, char** argv, char** env) {
     tick();
     dut -> rst_n = 1;
     //init_SA_test();
-    init_AS_test();
+    //init_AS_test();
+    init_seedram(0); // 初始化种子数据到 SP_RAM
     tick();
     runtill();
     dump_file = "./output/Bout.bin";
-    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE, 1344*8, 1344*8 *2))
+    if(dump_ram_to_bin(dump_file, dp_ram, RAM_SIZE, 1344*8, 1344*8 *2))
     {
         printf("Dumped output data from SP_RAM successfully.\n");
     }
@@ -63,7 +64,7 @@ int main(int argc, char** argv, char** env) {
         printf("Failed to dump output data from SP_RAM.\n");
     }
     dump_file = "./output/Bout.txt";
-    if(dump_ram_to_matrix(dump_file, sp_ram, RAM_SIZE,1344*8, 1344, 8))
+    if(dump_ram_to_matrix(dump_file, dp_ram, RAM_SIZE,1344*8, 1344, 8))
     {
         printf("Dumped output matrix from SP_RAM successfully.\n");
     }
