@@ -7,7 +7,7 @@
 #include "memory.h"
 #include <fstream>
 #include "testinit.h"
-#define MAX_SIM_TIME 7000
+#define MAX_SIM_TIME 27000
 vluint64_t sim_time = 0;
 
 VTEST_PLATFORM *dut = nullptr;
@@ -49,9 +49,9 @@ int main(int argc, char** argv, char** env) {
     dut -> rst_n = 0;
     tick();
     dut -> rst_n = 1;
-    //init_SA_test();
+    init_SA_test();
     //init_AS_test();
-    init_seedram(0); // 初始化种子数据到 SP_RAM
+    //init_seedram(0); // 初始化种子数据到 SP_RAM
     tick();
     runtill();
     dump_file = "./output/Bout.bin";

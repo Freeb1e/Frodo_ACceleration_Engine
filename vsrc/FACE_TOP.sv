@@ -10,6 +10,7 @@ module FACE_TOP(
         input logic [63:0] bram_rdata_dp_2,
         input logic [63:0] bram_rdata_HASH1,
         input logic [63:0] bram_rdata_HASH2,
+        input logic next_instr,
 
         output logic [31:0] addr_sp_1,
         output logic [31:0] addr_sp_2,
@@ -30,9 +31,9 @@ module FACE_TOP(
         output logic wen_HASH_1,
         output logic wen_HASH_2,
 
-        output logic busy
+        output logic [3:0] bitbusy
     );
-    assign busy = systolic_busy || shakebusy;
+    assign bitbusy = {1'b0,systolic_busy,shakebusy,1'b0};
     //systolic signals
     logic [3:0] current_state;
     logic [31:0] bram_addr_1,bram_addr_2,bram_addr_3;
@@ -40,7 +41,6 @@ module FACE_TOP(
     logic save_wen;
     logic [63:0] bram_savedata;
     logic [10:0] MATRIX_SIZE;
-
     logic [6:0] OPCODE;
     logic [2:0] FUNC;
     //systolic setting regs
