@@ -10,7 +10,7 @@ module FACE_TOP(
         input logic [63:0] bram_rdata_dp_2,
         input logic [63:0] bram_rdata_HASH1,
         input logic [63:0] bram_rdata_HASH2,
-        input logic next_instr,
+        input logic [1:0] prebusy,
 
         output logic [31:0] addr_sp_1,
         output logic [31:0] addr_sp_2,
@@ -31,9 +31,13 @@ module FACE_TOP(
         output logic wen_HASH_1,
         output logic wen_HASH_2,
 
-        output logic [3:0] bitbusy
+        output logic [1:0] bitbusy
     );
-    assign bitbusy = {1'b0,systolic_busy,shakebusy,1'b0};
+    parameter IDLE=4'd0;
+    parameter AS_CALC=4'd1,AS_SAVE=4'd2;
+    parameter SA_LOADWEIGHT=4'd3,SA_CALC=4'd4;
+    parameter AS = 2'b00 , SB = 2'b01 , BS = 2'b10 , SA = 2'b11;
+    assign bitbusy = {systolic_busy,sha3busy};
     //systolic signals
     logic [3:0] current_state;
     logic [31:0] bram_addr_1,bram_addr_2,bram_addr_3;
@@ -49,25 +53,46 @@ module FACE_TOP(
     logic [1:0] setaddr;//控制设置的BASE_ADDR是哪一个
     logic [1:0] ctrl_mode , ctrl_mode_REG;
     logic systolic_busy;
-    parameter IDLE=4'd0;
-    parameter AS_CALC=4'd1,AS_SAVE=4'd2;
-    parameter SA_LOADWEIGHT=4'd3,SA_CALC=4'd4;
-
-    parameter AS = 2'b00 , SB = 2'b01 , BS = 2'b10 , SA = 2'b11;
-    //systolic_addr_set
-
-    /* verilator lint_off CASEINCOMPLETE */
     assign BASE_ADDR = instr[30:12];
     assign FUNC = instr[9:7];
     assign OPCODE = instr[6:0];
+    logic sha3busy;
+    //systolic_addr_set
+    /* verilator lint_off CASEINCOMPLETE */
+
     assign setaddr = instr[11:10];
     assign ctrl_mode = instr[11:10];
+    always_ff@(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            systolic_busy <= 1'b0;
+            sha3busy <= 1'b0;
+        end
+        else begin
+            if(systolic_done) begin
+                systolic_busy <= 1'b0;
+            end
+            else begin
+                if(~systolic_busy)
+                    systolic_busy <=prebusy[1];
+            end
+
+            if(sha3_ready && !sha3_dumponce && OPCODE != `SHAOPCODE && !sha3_squeezeonce) begin
+                sha3busy <= 1'b0;
+            end else begin
+                if(~sha3busy)
+                    sha3busy <= prebusy[0];
+            end
+        end
+    end
+
     always_ff@(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             BASE_ADDR_LEFT <= 32'd0;
             BASE_ADDR_RIGHT <= 32'd0;
             BASE_ADDR_ADDSRC <= 32'd0;
             BASE_ADDR_SAVE <= 32'd0;
+            calc_init <= 1'b0;
+            ctrl_mode_REG <= 2'b00;
         end
         else begin
             if(FUNC == `systolic_addrset_FUNC && OPCODE == `SYSOPCODE) begin
@@ -85,18 +110,14 @@ module FACE_TOP(
                 endcase
             end
             if(FUNC == `systolic_calc_FUNC && OPCODE == `SYSOPCODE) begin
-                if(!systolic_busy) begin
+                if(!systolic_busy ||1'b1) begin
                     ctrl_mode_REG <= ctrl_mode;
                     calc_init <= 1'b1;
-                    systolic_busy <= 1'b1;
                     MATRIX_SIZE <= instr[22:12];
                 end
             end
             else begin
                 calc_init <= 1'b0;
-            end
-            if(systolic_done) begin
-                systolic_busy <= 1'b0;
             end
         end
     end
@@ -117,9 +138,6 @@ module FACE_TOP(
             end
         end
     end
-    //systolic busy&done signal
-
-
     //systoilc_data_bus
     logic [2:0] mem_mode;
     logic calc_init;
@@ -200,14 +218,15 @@ module FACE_TOP(
             endcase
         end
         else begin
-            if(shakebusy) begin
+            if(sha3busy) begin
                 addr_sp_1 = sha3_addr_perip;
                 seed_data_in = bram_rdata_sp_1;
                 if(dumpram_id == 1'b0) begin
                     addr_sp_2 = dump_addr + sha3_addr_perip;
                     wen_sp_2 = dump_wen;
                     bram_wdata_sp_2 = sha3_data_out;
-                end else begin
+                end
+                else begin
                     addr_dp_2 = dump_addr + sha3_addr_perip;
                     wen_dp_2 = dump_wen;
                     bram_wdata_dp_2 = sha3_data_out;
@@ -253,7 +272,7 @@ module FACE_TOP(
 
     logic [31:0] SEED_BASE_ADDR;
     logic [7:0] absorb_num,last_block_bytes;
-    logic shakebusy;
+    
     logic shakemode; // 0: SHAKE128, 1: SHAKE256
 
     logic [14:0] dump_BASE_addr;
@@ -265,27 +284,30 @@ module FACE_TOP(
             SEED_BASE_ADDR <= 32'd0;
             absorb_num <= 8'd0;
             last_block_bytes <= 8'd0;
+            sha3_start <= 1'b0;
+            sha3_squeezeonce <= 1'b0;
+            sha3_dumponce <= 1'b0;
+            shakemode <= 1'b0;
+            dump_BASE_addr <= 15'd0;
+            dumpram_id <= 1'b0;
         end
         else begin
             if(OPCODE == `SHAOPCODE) begin
                 case(FUNC)
                     `SHAKE_seedaddrset_FUNC: begin
                         SEED_BASE_ADDR <= {17'd0,instr[24:10]};
+                        shakemode <= instr[25];
                     end
                     `SHAKE_seedset_FUNC: begin
                         absorb_num <= instr[17:10];
                         last_block_bytes <= instr[25:18];
-                        shakemode <= instr[25];
                         sha3_start <= 1'b1;
-                        shakebusy <= 1'b1;
                     end
                     `SHAKE_squeezeonce_FUNC: begin
                         sha3_squeezeonce <= 1'b1;
-                        shakebusy <= 1'b1;
                     end
                     `SHAKE_dumponce_FUNC: begin
                         sha3_dumponce <= 1'b1;
-                        shakebusy <= 1'b1;
                         dump_BASE_addr <= instr[24:10];
                         dumpram_id <= instr[25];
                     end
@@ -299,9 +321,6 @@ module FACE_TOP(
             end
             if(sha3_squeezeonce) begin
                 sha3_squeezeonce <= 1'b0;
-            end
-            if(sha3_ready && !sha3_dumponce && OPCODE != `SHAOPCODE && !sha3_squeezeonce) begin
-                shakebusy <= 1'b0;
             end
             if(sha3_dumponce) begin
                 sha3_dumponce <= 1'b0;

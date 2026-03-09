@@ -63,7 +63,7 @@ module mem_ctrl(
         end
         else begin
             if(calc_init) begin
-                /* verilator lint_off WIDTHEXPAND */
+                /* verilator lint_off WIDTH */
                 matrix_size_reg<=MATRIX_SIZE;
                 Frodo_standard_A <= MATRIX_SIZE * 32'd8;
                 Frodo_standard_SE <= MATRIX_SIZE * 32'd4;
@@ -74,7 +74,7 @@ module mem_ctrl(
                 BASE_ADDR_RIGHT_REG <= BASE_ADDR_RIGHT;
                 BASE_ADDR_ADDSRC_REG <= BASE_ADDR_ADDSRC;
                 BASE_ADDR_SAVE_REG <= BASE_ADDR_SAVE;
-                /* verilator lint_on WIDTHEXPAND */
+                /* verilator lint_on WIDTH */
             end
             current_state<= next_state;
         end

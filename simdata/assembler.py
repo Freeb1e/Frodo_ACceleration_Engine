@@ -73,7 +73,7 @@ def assemble_line(line):
             opcode     = OPCODE_SHAKE & 0x7F
             machine_code = (bram_id << 25) | (start_addr << 10) | (func << 7) | opcode
         elif inst == "NOP":
-            machine_code = 0x00000000
+            machine_code = 0xAB000000
         else:
             raise ValueError(f"Unknown instruction: {inst}")
 

@@ -3,6 +3,13 @@
 #include <cstdio>
 #include <cstring>
 
+//#define DEBUG_MESSAGE
+#ifdef DEBUG_MESSAGE
+#define MEM_ERR_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define MEM_ERR_PRINTF(...) ((void)0)
+#endif
+
 uint8_t sp_ram[RAM_SIZE] = {0}; // 对应 bramid = 0
 uint8_t dp_ram[RAM_SIZE] = {0};            // 对应 bramid = 1
 uint8_t A_buffer_1[BUFFER_SIZE] = {0}; //对应 bramid = 2
@@ -42,7 +49,7 @@ void pmem_read(int raddr, int bramid, long long* rdata) {
     addr = addr << 3; // 64-bit aligned
     if (mem == nullptr || (addr + 8 > max_size)) {
         *rdata = 0; 
-        printf("[DPI Error] Read Out of Bounds! ID=%d, Addr=0x%x\n", bramid, addr);
+        MEM_ERR_PRINTF("[DPI Error] Read Out of Bounds! ID=%d, Addr=0x%x\n", bramid, addr);
         return;
     }
 
@@ -69,7 +76,7 @@ void pmem_write(int waddr, int bramid, long long wdata, char wmask) {
     uint8_t  mask = (uint8_t)wmask;
 
     if (mem == nullptr || (addr + 8 > max_size)) {
-        printf("[DPI Error] Write Out of Bounds! ID=%d, Addr=0x%x\n", bramid, addr);
+        MEM_ERR_PRINTF("[DPI Error] Write Out of Bounds! ID=%d, Addr=0x%x\n", bramid, addr);
         return;
     }
 

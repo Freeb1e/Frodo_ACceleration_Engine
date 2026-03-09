@@ -17,72 +17,90 @@ module TEST_PLATFORM(
     logic wen_HASH_1,wen_HASH_2;
     logic [31:0] instr_F,instr_D,instr_E;
     logic [63:0] instr64;
-    logic [3:0] bitbusy;
+    logic [1:0] bitbusy;
     logic [31:0] pc_reg,pc_reg_stall;
+    logic pc_choose_delay;
     FACE_TOP u_FACE_TOP(
-        .clk              	(clk               ),
-        .rst_n            	(rst_n             ),
-        .instr            	(instr_E             ),
-        .bram_rdata_sp_1  	(bram_rdata_sp_1   ),
-        .bram_rdata_sp_2  	(bram_rdata_sp_2   ),
-        .bram_rdata_dp_1  	(bram_rdata_dp_1   ),
-        .bram_rdata_dp_2  	(bram_rdata_dp_2   ),
-        .bram_rdata_HASH1 	(bram_rdata_HASH1  ),
-        .bram_rdata_HASH2 	(bram_rdata_HASH2  ),
-        .addr_sp_1        	(addr_sp_1         ),
-        .addr_sp_2        	(addr_sp_2         ),
-        .addr_dp_1        	(addr_dp_1         ),
-        .addr_dp_2        	(addr_dp_2         ),
-        .addr_HASH_1      	(addr_HASH_1       ),
-        .addr_HASH_2      	(addr_HASH_2       ),
-        .bram_wdata_sp_1  	(bram_wdata_sp_1   ),
-        .bram_wdata_sp_2  	(bram_wdata_sp_2   ),
-        .bram_wdata_dp_1  	(bram_wdata_dp_1   ),
-        .bram_wdata_dp_2  	(bram_wdata_dp_2   ),
-        .bram_wdata_HASH  	(bram_wdata_HASH   ),
-        .wen_sp_1         	(wen_sp_1          ),
-        .wen_sp_2         	(wen_sp_2          ),
-        .wen_dp_1         	(wen_dp_1          ),
-        .wen_dp_2         	(wen_dp_2          ),
-        .wen_HASH_1       	(wen_HASH_1        ),
-        .wen_HASH_2       	(wen_HASH_2        ),
-        .bitbusy             	(bitbusy              ),
-        .next_instr             (next_instr)
-    );
-    logic instr_valid;
-    assign instr_valid = 1'b1;
-    logic [3:0] instr_bitbusy;
-    logic instr_busytype_systolic_calc,instr_type_shake;
+                 .clk              	(clk               ),
+                 .rst_n            	(rst_n             ),
+                 .instr            	(instr_E             ),
+                 .bram_rdata_sp_1  	(bram_rdata_sp_1   ),
+                 .bram_rdata_sp_2  	(bram_rdata_sp_2   ),
+                 .bram_rdata_dp_1  	(bram_rdata_dp_1   ),
+                 .bram_rdata_dp_2  	(bram_rdata_dp_2   ),
+                 .bram_rdata_HASH1 	(bram_rdata_HASH1  ),
+                 .bram_rdata_HASH2 	(bram_rdata_HASH2  ),
+                 .addr_sp_1        	(addr_sp_1         ),
+                 .addr_sp_2        	(addr_sp_2         ),
+                 .addr_dp_1        	(addr_dp_1         ),
+                 .addr_dp_2        	(addr_dp_2         ),
+                 .addr_HASH_1      	(addr_HASH_1       ),
+                 .addr_HASH_2      	(addr_HASH_2       ),
+                 .bram_wdata_sp_1  	(bram_wdata_sp_1   ),
+                 .bram_wdata_sp_2  	(bram_wdata_sp_2   ),
+                 .bram_wdata_dp_1  	(bram_wdata_dp_1   ),
+                 .bram_wdata_dp_2  	(bram_wdata_dp_2   ),
+                 .bram_wdata_HASH  	(bram_wdata_HASH   ),
+                 .wen_sp_1         	(wen_sp_1          ),
+                 .wen_sp_2         	(wen_sp_2          ),
+                 .wen_dp_1         	(wen_dp_1          ),
+                 .wen_dp_2         	(wen_dp_2          ),
+                 .wen_HASH_1       	(wen_HASH_1        ),
+                 .wen_HASH_2       	(wen_HASH_2        ),
+                 .bitbusy             	(bitbusy              ),
+                 .prebusy               (prebusy               )
+             );
+
     logic [6:0] OPCODE_D,OPCODE_E;
     logic [2:0] FUNC_D,OPCPDE_E;
     logic ready;
-    logic next_instr;
 
     assign FUNC_D = instr_D[9:7];
     assign OPCODE_D = instr_D[6:0];
-    assign instr_busytype_systolic_calc = (OPCODE_D == `SYSOPCODE);
-    assign instr_type_shake = (OPCODE_D == `SHAOPCODE); 
-    assign instr_bitbusy = {1'b0,instr_busytype_systolic_calc,instr_type_shake,1'b0};
-    assign ready =!(|(instr_bitbusy & bitbusy));
-    assign next_instr = instr_valid && ready;
 
-    always_ff@(posedge clk or negedge rst_n)begin
-        if(!rst_n)begin
+    //在译码阶段标记需要占用的资源类型
+    logic pre_systolicbusy,pre_sha3busy;
+    logic [1:0] prebusy,instr_bitbusy;
+    assign pre_systolicbusy = (OPCODE_D == `SYSOPCODE)&&(FUNC_D == `systolic_calc_FUNC);
+    assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC);
+    assign prebusy = {pre_systolicbusy,pre_sha3busy};
+    assign instr_bitbusy = {(OPCODE_D == `SYSOPCODE),(OPCODE_D == `SHAOPCODE)};
+    assign ready =!(|(instr_bitbusy & bitbusy));
+
+    always_ff@(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
             pc_reg <= 32'd0;
-        end else begin
-            if(next_instr)begin
+            pc_choose_delay <= 1'b0;
+            pc_reg_stall <= 32'd0;
+        end
+        else begin
+            if(ready) begin
                 pc_reg <= pc_reg + 32'd4;
-                pc_reg_stall <= pc_reg;
-                instr_D <= instr_F;
+                instr_D <= instr_F; //指令流在IF阶段取指，D阶段译码，E阶段执行
                 instr_E <= instr_D;
-            end else begin
-                instr_D <= instr_D;
-                instr_E <= 32'hFFFFFFFF;
-                pc_reg <= pc_reg_stall;
+                pc_reg_stall <= pc_reg; //记录当前PC值，以便在资源占用时保持PC不变
             end
+            else begin
+                pc_reg <= pc_reg_stall; //保持PC不变，等待资源空闲
+                instr_D <= instr_D; //保持指令不变，等待资源空闲
+                instr_E <= 32'hFFFF_FFFF; //保持指令不变，等待资源空闲
+            end
+            pc_choose_delay <= pc_reg[2];
+        end
     end
+    assign instr_F = (ready_d)? (pc_choose_delay == 1'b0) ? instr64[31:0] : instr64[63:32] : 32'hFFFF_FFFF; //根据PC的最低两位选择指令的高32位或低32位，资源占用时输出无效指令
+
+    logic ready_d;
+    always_ff@(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            ready_d <= 1'b0;
+        end
+        else begin
+            ready_d <= ready;
+        end
     end
-    assign instr_F = (pc_reg[2] == 1'b1) ? instr64[31:0] : instr64[63:32];
+
+    // block RAM instances
     block_ram_dpi #(
                       .BRAM_ID 	(0  ))
                   sp_ram_port_1(

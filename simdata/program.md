@@ -26,3 +26,9 @@ systolic_addrset 21504,3
 systolic_calc 336,3
 nop
 
+## shake base
+NOP
+SHAKE_seedaddrset 0,0
+SHAKE_seedset 1,1
+NOP
+NOP
