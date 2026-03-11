@@ -3,8 +3,8 @@ import sys
 # ==========================================
 # 1. 配置区：请根据你的实际设计修改 OPCODE
 # ==========================================
-OPCODE_SYSTOLIC = 0b1010101  # 假设 Systolic 阵列指令的 opcode 为 0x0B
-OPCODE_SHAKE    = 0b1010100 # 假设 SHAKE 模块指令的 opcode 为 0x2B
+OPCODE_SYSTOLIC = 0b1010101  # Systolic 阵列指令的 opcode
+OPCODE_SHAKE    = 0b1010100  # SHAKE 模块指令的 opcode
 
 # ==========================================
 # 2. 核心解析与拼接逻辑
@@ -65,6 +65,22 @@ def assemble_line(line):
             opcode     = OPCODE_SHAKE & 0x7F
             machine_code = (func << 7) | opcode
 
+        elif inst == "systolic_bufswap":
+            # 格式: systolic_bufswap (无操作数)
+            func       = 2 & 0x7          # [9:7] FUNC = 2
+            opcode     = OPCODE_SYSTOLIC & 0x7F
+            machine_code = (func << 7) | opcode
+
+        elif inst == "SHAKE_dumpaword":
+            # 格式: SHAKE_dumpaword offset, start_addr
+            # offset [29:25], start_addr [24:10]
+            offset     = args[0] & 0x1F   # [29:25] 5 bits
+            start_addr = args[1] & 0x7FFF # [24:10] 15 bits
+            func       = 6 & 0x7          # [9:7] FUNC = 6
+            opcode     = OPCODE_SHAKE & 0x7F
+            machine_code = (offset << 25) | (start_addr << 10) | (func << 7) | opcode
+
+
         elif inst == "SHAKE_dumponce":
             # 格式: SHAKE_dumponce bram_id, start_addr
             bram_id    = args[0] & 0x1    # [25] 1 bit
@@ -72,6 +88,35 @@ def assemble_line(line):
             func       = 3 & 0x7          # [9:7] FUNC = 3
             opcode     = OPCODE_SHAKE & 0x7F
             machine_code = (bram_id << 25) | (start_addr << 10) | (func << 7) | opcode
+
+        elif inst == "SHAKE_gen_A":
+            # 格式: SHAKE_gen_A mode, offset, start_addr
+            # mode [31:30], offset [29:25], start_addr [24:10]
+            mode       = args[0] & 0x3    # [31:30] 2 bits
+            offset     = args[1] & 0x1F   # [29:25] 5 bits
+            start_addr = args[2] & 0x7FFF # [24:10] 15 bits
+            func       = 4 & 0x7          # [9:7] FUNC = 4
+            opcode     = OPCODE_SHAKE & 0x7F
+            machine_code = (mode << 30) | (offset << 25) | (start_addr << 10) | (func << 7) | opcode
+
+        elif inst == "SHAKE_gen_SE":
+            # 格式: SHAKE_gen_SE mode, offset, bram_id, start_addr
+            # mode [31:30], offset [29:25], bram_id [24], start_addr [23:10]
+            mode       = args[0] & 0x3    # [31:30] 2 bits
+            offset     = args[1] & 0x1F   # [29:25] 5 bits
+            bram_id    = args[2] & 0x1    # [24] 1 bit
+            start_addr = args[3] & 0x3FFF # [23:10] 14 bits
+            func       = 5 & 0x7          # [9:7] FUNC = 5
+            opcode     = OPCODE_SHAKE & 0x7F
+            machine_code = (mode << 30) | (offset << 25) | (bram_id << 24) | (start_addr << 10) | (func << 7) | opcode
+
+        elif inst == "SHAKE_absorb_genA":
+            # 格式: SHAKE_absorb_genA row_index
+            row_index  = args[0] & 0xFFFF # [25:10] 16 bits
+            func       = 7 & 0x7          # [9:7] FUNC = 7
+            opcode     = OPCODE_SHAKE & 0x7F
+            machine_code = (row_index << 10) | (func << 7) | opcode
+
         elif inst == "NOP":
             machine_code = 0xAB000000
         else:
@@ -90,23 +135,20 @@ def main():
     output_file = './simdata/firmware.bin'
 
     try:
-        # 注意：这里使用 'wb' 模式（Write Binary）
+        # 使用 'wb' 模式（Write Binary）
         with open(input_file, 'r') as f_in, open(output_file, 'wb') as f_out:
             for line_num, line in enumerate(f_in, 1):
                 try:
                     code = assemble_line(line)
                     if code is not None:
-                        # 将 32-bit 整数打包为 4 个字节
-                        # byteorder='little' (小端序) 或 'big' (大端序)
-                        # signed=False 表示无符号整数
+                        # 将 32-bit 整数打包为 4 个字节，小端序
                         bin_bytes = code.to_bytes(4, byteorder='little', signed=False)
                         f_out.write(bin_bytes)
                         
-                        # 在终端依然打印十六进制方便人工核对
+                        # 打印十六进制方便核对
                         print(f"Line {line_num}: {line.strip():<40} -> {code:08X}")
                 except Exception as e:
-                    print(f"Error at line {line_num}: {line.strip()}")
-                    print(f" -> {e}")
+                    print(f"Error at line {line_num}: {line.strip()} -> {e}")
                     
         print(f"\n✅ Assembly successful! Binary output saved to {output_file}")
     except FileNotFoundError:

@@ -4,6 +4,7 @@ VERILOG += $(wildcard vsrc/*.v)
 VERILOG += $(wildcard vsrc/SYSTOLIC/*.sv)
 VERILOG += $(wildcard vsrc/SHA/*.sv)
 VERILOG += $(wildcard vsrc/SHA/*.v)
+VERILOG += $(wildcard vsrc/SAMPLER/*.sv)
 CSOURCE=$(shell find csrc -name "*.cpp" -not -path "*/tools/capstone/repo/*")
 CSOURCE+=$(shell find csrc -name "*.c" -not -path "*/tools/capstone/repo/*")
 CSOURCE+=$(shell find csrc -name "*.cc" -not -path "*/tools/capstone/repo/*")
@@ -27,3 +28,6 @@ see:
 
 clean:
 	rm -rf obj_dir waveform.vcd
+
+asm:
+	python3 simdata/program.py

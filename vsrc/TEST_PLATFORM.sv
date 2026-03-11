@@ -62,7 +62,7 @@ module TEST_PLATFORM(
     logic pre_systolicbusy,pre_sha3busy;
     logic [1:0] prebusy,instr_bitbusy;
     assign pre_systolicbusy = (OPCODE_D == `SYSOPCODE)&&(FUNC_D == `systolic_calc_FUNC);
-    assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC);
+    assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC); 
     assign prebusy = {pre_systolicbusy,pre_sha3busy};
     assign instr_bitbusy = {(OPCODE_D == `SYSOPCODE),(OPCODE_D == `SHAOPCODE)};
     assign ready =!(|(instr_bitbusy & bitbusy));
@@ -99,7 +99,7 @@ module TEST_PLATFORM(
             ready_d <= ready;
         end
     end
-
+    
     // block RAM instances
     block_ram_dpi #(
                       .BRAM_ID 	(0  ))

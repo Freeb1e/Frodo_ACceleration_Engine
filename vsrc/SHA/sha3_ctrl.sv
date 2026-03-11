@@ -172,6 +172,7 @@ module sha3_ctrl(
                         dump_oncedone <= (word_counter == words_rate -5'd2) ? 1'b1 : 1'b0;
                 end else begin
                     word_counter <= 5'd0;
+                    addr_output <= 32'd0;
                 end
             end
         end
