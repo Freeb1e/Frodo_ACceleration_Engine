@@ -299,7 +299,7 @@ module FACE_TOP(
                     addr_sp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
                     wen_sp_2 = dump_wen || sampling_wen;
                     //wen_sp_2 =1; // 只在采样时写入，dump操作由外部控制写使能
-                    if(sample_mode == 2'd2) begin
+                    if(sample_mode == 2'd2 && !is_e_matrix_reg) begin
                         bram_wdata_sp_2 = (addr_sp_2[2] == 1'b0) ? {32'd0, final_sha3_data_out[31:0]} : {final_sha3_data_out[31:0],32'd0};
                         sp2_wmask = (addr_sp_2[2] == 1'b0) ? 8'h0F : 8'hF0; // 根据地址最低位选择写入半个字
                     end
@@ -309,7 +309,7 @@ module FACE_TOP(
                 else begin
                     addr_dp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
                     wen_dp_2 = dump_wen || sampling_wen;
-                    if(sample_mode == 2'd2) begin
+                    if(sample_mode == 2'd2 && !is_e_matrix_reg) begin
                         bram_wdata_dp_2 = (addr_dp_2[2] == 1'b0) ? {32'd0, final_sha3_data_out[31:0]} : {final_sha3_data_out[31:0],32'd0};
                         dp2_wmask = (addr_dp_2[2] == 1'b0) ? 8'h0F : 8'hF0; // 根据地址最低位选择写入半个字
                     end
@@ -365,6 +365,7 @@ module FACE_TOP(
     logic [31:0] dump_addr;
     logic [1:0] sample_mode;
     logic [1:0] frodo_mode_reg;
+    logic is_e_matrix_reg; // 新增：区分 S 矩阵(8-bit)和 E 矩阵(16-bit)
 
     logic [15:0] row_index_reg;
     logic [127:0] seed_A_buffer;
@@ -430,8 +431,9 @@ module FACE_TOP(
                     end
                     `SHAKE_gen_SE_FUNC: begin
                         sampling_wen <= 1'b1;
-                        dump_BASE_addr <= {instr[23:10],1'b0};
+                        dump_BASE_addr <= {instr[22:10], 2'b0};
                         dumpram_id <= instr[24];
+                        is_e_matrix_reg <= instr[23];
                         sample_mode <= 2'd2;
                         frodo_mode_reg <= instr[31:30];
                         sha3_sample_addr <= instr[29:25];
@@ -509,6 +511,7 @@ module FACE_TOP(
 
     SE_sampler u_SE_sampler(
                    .frodo_mode(frodo_mode_reg),
+                   .is_e_matrix(is_e_matrix_reg),
                    .shake_data(sha3_data_out),
                    .se_data(sampler_SE_out)
                );

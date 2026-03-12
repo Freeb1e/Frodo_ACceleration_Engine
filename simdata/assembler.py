@@ -100,16 +100,15 @@ def assemble_line(line):
             machine_code = (mode << 30) | (offset << 25) | (start_addr << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_gen_SE":
-            # 【特殊指令处理】为了避免偏移和 ID 冲突
-            # 格式: SHAKE_gen_SE mode, offset, bram_id, word_addr
-            # mode [31:30], offset [29:25], bram_id [24], word_addr [23:10]
-            mode       = args[0] & 0x3    # [31:30] 2 bits
-            offset     = args[1] & 0x1F   # [29:25] 5 bits
-            bram_id    = args[2] & 0x1    # [24] 1 bit
-            word_addr  = args[3] & 0x3FFF # [23:10] 14 bits (注意：传入的是字地址)
-            func       = 5 & 0x7          # [9:7] FUNC = 5
+            # 【特殊处理】 mode[31:30], offset[29:25], bram_id[24], esign[23], word_addr[22:10]
+            mode       = args[0] & 0x3
+            offset     = args[1] & 0x1F
+            bram_id    = args[2] & 0x1
+            esign      = args[3] & 0x1
+            word_addr  = args[4] & 0x1FFF # 13 bits
+            func       = 5 & 0x7
             opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (mode << 30) | (offset << 25) | (bram_id << 24) | (word_addr << 10) | (func << 7) | opcode
+            machine_code = (mode << 30) | (offset << 25) | (bram_id << 24) | (esign << 23) | (word_addr << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_absorb_genA":
             # 格式: SHAKE_absorb_genA MATRIX_sign, block_num, row_index
@@ -131,25 +130,19 @@ def assemble_line(line):
 
     return machine_code
 
-# ==========================================
-# 3. 文件读写
-# ==========================================
+# ... (main)
 def main():
     input_file = './simdata/test.asm'
     output_file = './simdata/firmware.bin'
 
     try:
-        # 使用 'wb' 模式（Write Binary）
         with open(input_file, 'r') as f_in, open(output_file, 'wb') as f_out:
             for line_num, line in enumerate(f_in, 1):
                 try:
                     code = assemble_line(line)
                     if code is not None:
-                        # 将 32-bit 整数打包为 4 个字节，小端序
                         bin_bytes = code.to_bytes(4, byteorder='little', signed=False)
                         f_out.write(bin_bytes)
-                        
-                        # 打印十六进制方便核对
                         print(f"Line {line_num}: {line.strip():<40} -> {code:08X}")
                 except Exception as e:
                     print(f"Error at line {line_num}: {line.strip()} -> {e}")
