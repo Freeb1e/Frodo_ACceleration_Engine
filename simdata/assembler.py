@@ -100,15 +100,16 @@ def assemble_line(line):
             machine_code = (mode << 30) | (offset << 25) | (start_addr << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_gen_SE":
-            # 格式: SHAKE_gen_SE mode, offset, bram_id, start_addr
-            # mode [31:30], offset [29:25], bram_id [24], start_addr [23:10]
+            # 【特殊指令处理】为了避免偏移和 ID 冲突
+            # 格式: SHAKE_gen_SE mode, offset, bram_id, word_addr
+            # mode [31:30], offset [29:25], bram_id [24], word_addr [23:10]
             mode       = args[0] & 0x3    # [31:30] 2 bits
             offset     = args[1] & 0x1F   # [29:25] 5 bits
             bram_id    = args[2] & 0x1    # [24] 1 bit
-            start_addr = args[3] & 0x3FFF # [23:10] 14 bits
+            word_addr  = args[3] & 0x3FFF # [23:10] 14 bits (注意：传入的是字地址)
             func       = 5 & 0x7          # [9:7] FUNC = 5
             opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (mode << 30) | (offset << 25) | (bram_id << 24) | (start_addr << 10) | (func << 7) | opcode
+            machine_code = (mode << 30) | (offset << 25) | (bram_id << 24) | (word_addr << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_absorb_genA":
             # 格式: SHAKE_absorb_genA MATRIX_sign, block_num, row_index

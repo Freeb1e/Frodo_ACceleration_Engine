@@ -69,29 +69,30 @@ class FaceLib:
         """
         self._emit(f"SHAKE_gen_A {mode}, {offset}, {hex(start_addr)}")
 
-    def shake_gen_se(self, mode, offset, bram_id, start_addr):
+    def shake_gen_se(self, mode, offset, bram_id, word_addr):
         """
-        从 SHAKE 状态提取数据经采样写入内存。
+        【特殊指令】从 SHAKE 状态提取数据经采样写入内存。
+        为了避免偏移(offset)与 bram_id 冲突，本指令采用特殊布局。
         :param mode: 标准 (0:640, 1:976, 2:1344)
-        :param offset: 字偏移 (0-20)
-        :param bram_id: 目标 BRAM (0:SP, 1:DP)
-        :param start_addr: 内存地址 (14位)
+        :param offset: 字偏移 (0-24) - 占用指令 [29:25]
+        :param bram_id: 目标 BRAM (0:SP, 1:DP) - 占用指令第 24 位
+        :param word_addr: 内存字地址 (14位) - 占用指令 [23:10]，硬件会自动拼接低位 0
         """
-        self._emit(f"SHAKE_gen_SE {mode}, {offset}, {bram_id}, {hex(start_addr)}")
+        self._emit(f"SHAKE_gen_SE {mode}, {offset}, {bram_id}, {hex(word_addr)}")
 
     def shake_dumpaword(self, offset, start_addr):
         """
         直接从 SHAKE 状态提取一个原始字(64-bit)存入 HASH Buffer。
-        :param offset: 字偏移 (0-20)
-        :param start_addr: HASH Buffer 内目标地址
+        :param offset: 字偏移 (0-24)
+        :param start_addr: HASH Buffer 内目标地址 (15位)
         """
         self._emit(f"SHAKE_dumpaword {offset}, {hex(start_addr)}")
 
     def shake_dumponce(self, bram_id, start_addr):
         """
         将当前 SHAKE 块中的原始数据直接转储到内存。
-        :param bram_id: 目标 BRAM
-        :param start_addr: 写入内存的起始偏移地址
+        :param bram_id: 目标 BRAM (0:SP, 1:DP) - 占用指令第 25 位
+        :param start_addr: 写入内存的起始偏移地址 (15位) - 占用指令 [24:10]
         """
         self._emit(f"SHAKE_dumponce {bram_id}, {hex(start_addr)}")
 

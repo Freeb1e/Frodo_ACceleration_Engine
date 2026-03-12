@@ -8,7 +8,7 @@
 #include <fstream>
 #include <iomanip>
 #include "testinit.h"
-#define MAX_SIM_TIME 27000
+#define MAX_SIM_TIME 270000
 vluint64_t sim_time = 0;
 
 VTEST_PLATFORM *dut = nullptr;
@@ -121,7 +121,7 @@ int main(int argc, char** argv, char** env) {
     tick();
     runtill();
     const char* dump_file = "./output/Bout.bin";
-    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE, 1344*8, 1344*8 *2))
+    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE, 0, RAM_SIZE))
     {
         printf("Dumped output data from SP_RAM successfully.\n");
     }

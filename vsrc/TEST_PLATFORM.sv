@@ -20,6 +20,7 @@ module TEST_PLATFORM(
     logic [1:0] bitbusy;
     logic [31:0] pc_reg,pc_reg_stall;
     logic pc_choose_delay;
+    logic [7:0] sp2_wmask,dp2_wmask;
     FACE_TOP u_FACE_TOP(
                  .clk              	(clk               ),
                  .rst_n            	(rst_n             ),
@@ -48,7 +49,9 @@ module TEST_PLATFORM(
                  .wen_HASH_1       	(wen_HASH_1        ),
                  .wen_HASH_2       	(wen_HASH_2        ),
                  .bitbusy             	(bitbusy              ),
-                 .prebusy               (prebusy               )
+                 .prebusy               (prebusy               ),
+                 .sp2_wmask             (sp2_wmask             ),
+                 .dp2_wmask             (dp2_wmask             )
              );
 
     logic [6:0] OPCODE_D,OPCODE_E;
@@ -119,7 +122,7 @@ module TEST_PLATFORM(
                       .raddr 	(addr_sp_2  ),
                       .waddr 	(addr_sp_2  ),
                       .wdata 	(bram_wdata_sp_2  ),
-                      .wmask 	(8'hFF  ),
+                      .wmask 	(sp2_wmask  ),
                       .wen   	(wen_sp_2    ),
                       .rdata 	(bram_rdata_sp_2 )
                   );
@@ -141,7 +144,7 @@ module TEST_PLATFORM(
                       .raddr 	(addr_dp_2  ),
                       .waddr 	(addr_dp_2  ),
                       .wdata 	(bram_wdata_dp_2  ),
-                      .wmask 	(8'hFF  ),
+                      .wmask 	(dp2_wmask  ),
                       .wen   	(wen_dp_2    ),
                       .rdata 	(bram_rdata_dp_2 )
                   );

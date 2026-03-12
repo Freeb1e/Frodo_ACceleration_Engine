@@ -202,7 +202,7 @@ module mem_ctrl(
             AS_CALC: begin
                 // addr_HASH =BASE_ADDR_HASH_REG+cnt_line*32'd64+count_4*Frodo_standard_A;
                 // addr_sb = BASE_ADDR_S_REG+cnt_line*32'd32+count_4*Frodo_standard_SE;
-                bram_addr_1 = BASE_ADDR_LEFT_REG+cnt_line*32'd8+count_4*Frodo_standard_A;
+                bram_addr_1 = BASE_ADDR_LEFT_REG+cnt_line*32'd8+count_4*Frodo_standard_A ;
                 bram_addr_2 = BASE_ADDR_RIGHT_REG+cnt_line*32'd4+count_4*Frodo_standard_SE;
             end
             AS_SAVE: begin

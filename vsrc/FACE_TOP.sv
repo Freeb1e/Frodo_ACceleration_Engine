@@ -30,6 +30,8 @@ module FACE_TOP(
         output logic wen_dp_2,
         output logic wen_HASH_1,
         output logic wen_HASH_2,
+        output logic [7:0] sp2_wmask,
+        output logic [7:0] dp2_wmask,
 
         output logic [1:0] bitbusy
     );
@@ -188,6 +190,9 @@ module FACE_TOP(
         bram_data_3 = 64'd0;
         seed_data_in = 64'd0;
         absorb_genA_addr = SEED_BASE_ADDR + sha3_addr_perip;
+
+        sp2_wmask = 8'hFF;
+        dp2_wmask = 8'hFF;
         if(systolic_busy) begin
             case(current_state)
                 SA_LOADWEIGHT: begin
@@ -293,12 +298,23 @@ module FACE_TOP(
                     // 其他指令（genSE, dumponce等）维持原有 RAM 路由
                     addr_sp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
                     wen_sp_2 = dump_wen || sampling_wen;
-                    bram_wdata_sp_2 = final_sha3_data_out;
+                    //wen_sp_2 =1; // 只在采样时写入，dump操作由外部控制写使能
+                    if(sample_mode == 2'd2) begin
+                        bram_wdata_sp_2 = (addr_sp_2[2] == 1'b0) ? {32'd0, final_sha3_data_out[31:0]} : {final_sha3_data_out[31:0],32'd0};
+                        sp2_wmask = (addr_sp_2[2] == 1'b0) ? 8'h0F : 8'hF0; // 根据地址最低位选择写入半个字
+                    end
+                    else
+                        bram_wdata_sp_2 = final_sha3_data_out;
                 end
                 else begin
                     addr_dp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
                     wen_dp_2 = dump_wen || sampling_wen;
-                    bram_wdata_dp_2 = final_sha3_data_out;
+                    if(sample_mode == 2'd2) begin
+                        bram_wdata_dp_2 = (addr_dp_2[2] == 1'b0) ? {32'd0, final_sha3_data_out[31:0]} : {final_sha3_data_out[31:0],32'd0};
+                        dp2_wmask = (addr_dp_2[2] == 1'b0) ? 8'h0F : 8'hF0; // 根据地址最低位选择写入半个字
+                    end
+                    else
+                        bram_wdata_dp_2 = final_sha3_data_out;
                 end
             end
         end
@@ -414,8 +430,8 @@ module FACE_TOP(
                     end
                     `SHAKE_gen_SE_FUNC: begin
                         sampling_wen <= 1'b1;
-                        dump_BASE_addr <= instr[24:10];
-                        dumpram_id <= instr[25];
+                        dump_BASE_addr <= {instr[23:10],1'b0};
+                        dumpram_id <= instr[24];
                         sample_mode <= 2'd2;
                         frodo_mode_reg <= instr[31:30];
                         sha3_sample_addr <= instr[29:25];
@@ -445,7 +461,7 @@ module FACE_TOP(
 
             case(absorb_genA_state)
                 4'd0: begin
-                    
+
                 end
                 4'd1: begin
                     absorb_genA_state <= 4'd2;

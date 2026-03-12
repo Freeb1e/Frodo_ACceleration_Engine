@@ -49,6 +49,7 @@ module sha3(    input wire          clk,
                 input wire [ 8:2]    addr,
                 input wire [64-1:0]  din,
                 output wire [64-1:0] dout,
+                input wire start,
                 input wire 	     init,
                 input wire 	     next,
                 input wire 	     squeeze,
@@ -203,7 +204,10 @@ module sha3(    input wire          clk,
            round <= 'd0;
 
         end
-
+        if(start)  begin
+          for (i=0; i<25; i=i+1)
+            blk[i]       <= 64'h0;
+        end
         if (w)
           blk[addr[7:3]] <= din_swap;
      end

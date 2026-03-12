@@ -74,6 +74,7 @@ module sha3_ctrl(
              .addr   	(addr_keccak    ),
              .din    	(din_keccak    ),
              .dout   	(dout_keccak    ),
+             .start  	(sha3_start   ),
              .init   	(init_keccak    ),
              .next   	(next_keccak_absorb      ),
              .squeeze    (next_keccak_squeeze   ),
