@@ -130,7 +130,7 @@ module FACE_TOP(
             else begin
                 calc_init <= 1'b0;
             end
-            
+
             if(FUNC == `systolic_bufswap_FUNC && OPCODE == `SYSOPCODE) begin
                 hash_buffer_sel <= ~hash_buffer_sel;
             end
@@ -187,6 +187,7 @@ module FACE_TOP(
         bram_data_2 = 64'd0;
         bram_data_3 = 64'd0;
         seed_data_in = 64'd0;
+        absorb_genA_addr = SEED_BASE_ADDR + sha3_addr_perip;
         if(systolic_busy) begin
             case(current_state)
                 SA_LOADWEIGHT: begin
@@ -254,16 +255,22 @@ module FACE_TOP(
             if(sha3busy) begin
                 if(absorb_genA_active) begin
                     addr_sp_1 = absorb_genA_addr;
-                    case(sha3_addr_perip[5:3])
-                        3'd1:
-                            seed_data_in = {seed_A_buffer[47:0], row_index_reg};
-                        3'd2:
-                            seed_data_in = seed_A_buffer[111:48];
-                        3'd3:
-                            seed_data_in = {48'h0, seed_A_buffer[127:112]};
-                        default:
-                            seed_data_in = 64'd0;
-                    endcase
+                    if(MATRIX_sign) begin
+                        if(absorb_genA_state == 4'd3)
+                            seed_data_in = {bram_rdata_sp_1[47:0], row_index_reg};
+                        else if(absorb_genA_state == 4'd4)
+                            seed_data_in = {bram_rdata_sp_1[47:0],seed_A_buffer[63:48]};
+                        else
+                            seed_data_in = {48'd0,seed_A_buffer[63:48]};
+                    end
+                    else begin
+                        if(absorb_genA_state == 4'd3)
+                            seed_data_in = {bram_rdata_sp_1[55:0], 8'h5F};
+                        else if(absorb_genA_state <block_num + 4'd3)
+                            seed_data_in = {bram_rdata_sp_1[55:0],seed_A_buffer[63:56]};
+                        else
+                            seed_data_in = {56'd0,seed_A_buffer[63:56]};
+                    end
                 end
                 else begin
                     addr_sp_1 = sha3_addr_perip + SEED_BASE_ADDR;
@@ -346,11 +353,12 @@ module FACE_TOP(
     logic [15:0] row_index_reg;
     logic [127:0] seed_A_buffer;
     logic absorb_genA_active;
-    logic [1:0] absorb_genA_state;
+    logic [3:0] absorb_genA_state;
     logic sampling_wen; // 新增：采样单周期写使能
 
+    logic [3:0] block_num;
     logic hash_buffer_sel; // 0: Systolic->HASH1, SHAKE->HASH2 | 1: Systolic->HASH2, SHAKE->HASH1
-
+    logic MATRIX_sign;
     assign dump_addr = {17'd0,dump_BASE_addr};
 
     always_ff@(posedge clk or negedge rst_n) begin
@@ -368,10 +376,11 @@ module FACE_TOP(
             frodo_mode_reg <= 2'd0;
             row_index_reg <= 16'd0;
             absorb_genA_active <= 1'b0;
-            absorb_genA_state <= 2'd0;
+            absorb_genA_state <= 4'd0;
             seed_A_buffer <= 128'd0;
             sha3_sample_addr <= 5'd0;
             sampling_wen <= 1'b0;
+            MATRIX_sign <= 1'b0;
         end
         else begin
             if(OPCODE == `SHAOPCODE) begin
@@ -394,7 +403,7 @@ module FACE_TOP(
                         dump_BASE_addr <= instr[24:10];
                         dumpram_id <= instr[25];
                         sample_mode <= 2'd0;
-                        end
+                    end
                     `SHAKE_gen_A_FUNC: begin
                         sampling_wen <= 1'b1;
                         dump_BASE_addr <= instr[24:10];
@@ -419,9 +428,11 @@ module FACE_TOP(
                     end
                     `SHAKE_absorb_genA_FUNC: begin
                         row_index_reg <= instr[25:10];
+                        block_num <= instr[29:26];
+                        MATRIX_sign <= instr[31];
                         absorb_genA_active <= 1'b1;
-                        absorb_genA_state <= 2'd1;
-                        absorb_genA_addr <= SEED_BASE_ADDR;
+                        absorb_genA_state <= 4'd1;
+                        sha3_start <= 1'b1;
                     end
                     default:
                         ;
@@ -433,20 +444,33 @@ module FACE_TOP(
                 sampling_wen <= 1'b0;
 
             case(absorb_genA_state)
-                2'd1: begin
-                    absorb_genA_state <= 2'd2;
-                    sha3_start <= 1'b1;
-                    absorb_genA_addr <= SEED_BASE_ADDR + 32'd8;
+                4'd0: begin
+                    
                 end
-                2'd2: begin
+                4'd1: begin
+                    absorb_genA_state <= 4'd2;
+                end
+                4'd2: begin
+                    absorb_genA_state <= 4'd3;
                     seed_A_buffer[63:0] <= bram_rdata_sp_1;
-                    absorb_genA_state <= 2'd3; 
                 end
-                2'd3: begin
-                    seed_A_buffer[127:64] <= bram_rdata_sp_1;
-                    absorb_genA_state <= 2'd0;
+                4'd3: begin
+                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                    absorb_genA_state <= 4'd4;
+                end
+                4'd4: begin
+                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                    absorb_genA_state <= 4'd5;
                     absorb_num <= 8'd1;
-                    last_block_bytes <= 8'd18;
+                    if(MATRIX_sign)
+                        last_block_bytes <= block_num * 4'd8 + 8'd2;
+                    else
+                        last_block_bytes <= block_num * 4'd8 + 8'd1;
+                end
+                default: begin
+                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                    absorb_genA_state <= absorb_genA_state + 4'd1;
+                    absorb_num <= 8'd1;
                 end
             endcase
 

@@ -6,7 +6,7 @@ extern bool dump_ram_to_matrix(const char* filename, const uint8_t* ram_ptr, uin
 extern bool load_bin_to_ram_protect(const char* filename, uint8_t* ram_ptr, uint32_t max_size, uint32_t offset);
 #define RAM_SIZE    (64 * 1024)
 #define BUFFER_SIZE (10752)
-#define PC_ROM_SIZE 1024
+#define PC_ROM_SIZE 1024 *64
 
 extern uint8_t sp_ram[RAM_SIZE]; // 对应 bramid = 0
 extern uint8_t dp_ram[RAM_SIZE];  // 对应 bramid = 1

@@ -95,12 +95,14 @@ class FaceLib:
         """
         self._emit(f"SHAKE_dumponce {bram_id}, {hex(start_addr)}")
 
-    def shake_absorb_genA(self, row_index):
+    def shake_absorb_genA(self, matrix_sign, block_num, row_index):
         """
         用于生成矩阵 A 的特定行处理指令。
-        :param row_index: 当前处理的行索引
+        :param matrix_sign: 符号位 (1 bit, instr[31])
+        :param block_num: 块编号 (4 bits, instr[29:26])
+        :param row_index: 当前处理的行索引 (16 bits, instr[25:10])
         """
-        self._emit(f"SHAKE_absorb_genA {hex(row_index)}")
+        self._emit(f"SHAKE_absorb_genA {matrix_sign}, {block_num}, {hex(row_index)}")
 
     # ==========================================
     # 3. 辅助指令

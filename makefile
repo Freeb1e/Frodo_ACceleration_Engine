@@ -31,3 +31,5 @@ clean:
 
 asm:
 	python3 simdata/program.py
+	python3 simdata/assembler.py
+	./obj_dir/V$(TOP_NAME)

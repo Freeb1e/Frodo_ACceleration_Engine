@@ -2,3 +2,4 @@ obj_dir
 *.bin
 *.txt
 *.vcd
+*.pyc

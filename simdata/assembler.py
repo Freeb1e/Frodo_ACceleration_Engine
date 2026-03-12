@@ -111,11 +111,14 @@ def assemble_line(line):
             machine_code = (mode << 30) | (offset << 25) | (bram_id << 24) | (start_addr << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_absorb_genA":
-            # 格式: SHAKE_absorb_genA row_index
-            row_index  = args[0] & 0xFFFF # [25:10] 16 bits
+            # 格式: SHAKE_absorb_genA MATRIX_sign, block_num, row_index
+            # MATRIX_sign [31], block_num [29:26], row_index [25:10]
+            sign       = args[0] & 0x1    # [31] 1 bit
+            block_num  = args[1] & 0xF    # [29:26] 4 bits
+            row_index  = args[2] & 0xFFFF # [25:10] 16 bits
             func       = 7 & 0x7          # [9:7] FUNC = 7
             opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (row_index << 10) | (func << 7) | opcode
+            machine_code = (sign << 31) | (block_num << 26) | (row_index << 10) | (func << 7) | opcode
 
         elif inst == "NOP":
             machine_code = 0xAB000000

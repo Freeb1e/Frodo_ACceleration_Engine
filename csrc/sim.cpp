@@ -117,7 +117,7 @@ int main(int argc, char** argv, char** env) {
     //init_SA_test();
     //init_AS_test();
     //init_seedram(0); // 初始化种子数据到 SP_RAM
-    interactive_memory_query();
+    //interactive_memory_query();
     tick();
     runtill();
     const char* dump_file = "./output/Bout.bin";
