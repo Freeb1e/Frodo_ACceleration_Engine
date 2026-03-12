@@ -23,10 +23,10 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | SHAKE_seedset     |                   `[25:18]last_block_bytes` `[17:10]absorb_num`  `[9:7]FUNC` `[6:0]OPCODE` | 1    |
 | SHAKE_squeezeonce |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
 | SHAKE_gen_A       |               `[31:30]mode` `[29:25]offset` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 4    |
-| SHAKE_gen_SE      | `[31:30]mode` `[29:25]offset` `[24]bram_id` `[23:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 5    |
+| SHAKE_gen_SE      | `[31:30]mode` `[29:25]offset` `[24]bram_id` `[23]esign` `[22:10]word_addr` `[9:7]FUNC` `[6:0]OPCODE` | 5 |
 | SHAKE_dumpaword    |                               `[29:25]offset` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 6    |
 | SHAKE_dumponce    |                               `[25]bram_id` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 3    |
-| SHAKE_absorb_genA |                                               `[25:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 7    |
+| SHAKE_absorb_genA | `[25]matrix_sign` `[24:21]block_num` `[20:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 7    |
 
 ### 指令详细解释
 | 指令名称              | 功能描述                                                    | 参数说明                                                                                                                    |
@@ -38,27 +38,27 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | **SHAKE_seedset**     | 设置吸收参数并启动 SHAKE Absorb 过程。                      | **absorb_num**: 吸收的块数；**last_block_bytes**: 最后一个块的有效字节数。                                                  |
 | **SHAKE_squeezeonce** | 执行一次 SHAKE Squeeze 操作，生成新的内部状态块。           | 无额外参数。                                                                                                                |
 | **SHAKE_gen_A**       | 从 SHAKE 状态提取数据经采样写入 HASH 乒乓缓存区。           | **mode**: 标准 (0:640, 1:976, 2:1344)；**offset**: 字偏移 (0-20)；**start_addr**: HASH Buffer 内偏移 (15位)。               |
-| **SHAKE_gen_SE**      | 从 SHAKE 状态提取数据经采样写入内存。                       | **mode**: 标准 (0:640, 1:976, 2:1344)；**offset**: 字偏移 (0-20)；**bram_id**: 目标 BRAM；**start_addr**: 内存地址 (14位)。 |
+| **SHAKE_gen_SE**      | 从 SHAKE 状态提取数据经采样写入内存。                       | **mode**: 标准 (0:640, 1:976, 2:1344)；**offset**: 字偏移 (0-24)；**bram_id**: 目标 BRAM；**esign**: 标志位 (0:S, 1:E)；**word_addr**: 内存字地址。 |
 | **SHAKE_dumponce**    | 将当前 SHAKE 块中的原始数据直接转储到内存。                 | **bram_id**: 目标 BRAM；**start_addr**: 写入内存的起始偏移地址。                                                            |
-| **SHAKE_absorb_genA** | 用于生成矩阵 A 的特定行处理指令。                           | **row_index**: 当前处理的行索引。                                                                                           |
+| **SHAKE_absorb_genA** | 用于生成矩阵 A 或 SE 的特定行处理指令。                     | **matrix_sign**: 矩阵类型；**block_num**: 块编号；**row_index**: 当前处理的行索引。                                         |
 
 ### 汇编指令格式说明
 为了方便编写 `.asm` 文件，汇编器支持以下格式（支持十进制或 `0x` 前缀的十六进制）：
 
-| 汇编指令示例                   | 操作数顺序与意义                          |
-| :----------------------------- | :---------------------------------------- |
-| `systolic_addrset 0x1000, 0`   | `BASE_ADDR`, `SETTAR`                     |
-| `systolic_calc 64, 0`          | `MATRIX_SIZE`, `ctrl_mode`                |
-| `systolic_bufswap`             | (无操作数，触发 HASH Buffer 角色翻转)     |
-| `SHAKE_seedaddrset 1, 0x2000`  | `shakemode` (0:128, 1:256), `start_addr`  |
-| `SHAKE_seedset 136, 1`         | `last_block_bytes`, `absorb_num`          |
-| `SHAKE_squeezeonce`            | (无操作数)                                |
-| `SHAKE_gen_A 0, 0, 0x0`        | `mode`, `offset`, `start_addr`            |
-| `SHAKE_gen_SE 0, 0, 0, 0x3000` | `mode`, `offset`, `bram_id`, `start_addr` |
-| `SHAKE_dumpaword 0, 0x0`       | `offset`, `start_addr`                    |
-| `SHAKE_dumponce 1, 0x4000`     | `bram_id`, `start_addr`                   |
-| `SHAKE_absorb_genA 0x1234`     | `row_index`                               |
-| `NOP`                          | (空指令，生成 `0xAB000000`)               |
+| 汇编指令示例                           | 操作数顺序与意义                                   |
+| :------------------------------------- | :------------------------------------------------- |
+| `systolic_addrset 0x1000, 0`           | `BASE_ADDR`, `SETTAR`                              |
+| `systolic_calc 64, 0`                  | `MATRIX_SIZE`, `ctrl_mode`                         |
+| `systolic_bufswap`                     | (无操作数，触发 HASH Buffer 角色翻转)              |
+| `SHAKE_seedaddrset 1, 0x2000`          | `shakemode` (0:128, 1:256), `start_addr`           |
+| `SHAKE_seedset 136, 1`                 | `last_block_bytes`, `absorb_num`                   |
+| `SHAKE_squeezeonce`                    | (无操作数)                                         |
+| `SHAKE_gen_A 0, 0, 0x0`                | `mode`, `offset`, `start_addr`                     |
+| `SHAKE_gen_SE 2, 0, 0, 0, 0x3000`      | `mode`, `offset`, `bram_id`, `esign`, `word_addr`  |
+| `SHAKE_dumpaword 0, 0x0`               | `offset`, `start_addr`                             |
+| `SHAKE_dumponce 1, 0x4000`             | `bram_id`, `start_addr`                            |
+| `SHAKE_absorb_genA 0, 8, 0x1234`       | `matrix_sign`, `block_num`, `row_index`            |
+| `NOP`                                  | (空指令，生成 `0xAB000000`)                        |
 
 ---
 ```sv
@@ -80,9 +80,10 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 
 ### GEN指令参数说明:
 - **mode** [31:30]: 采样标准选择 (0:640, 1:976, 2:1344)。
-- **offset** [29:25]: 指定从 SHAKE 内部块中读取第几个 64-bit 字 (0-20)。
+- **offset** [29:25]: 指定从 SHAKE 内部块中读取第几个 64-bit 字 (0-20/24)。
 - **bram_id** [24]: 0 为 SP_RAM, 1 为 DP_RAM (仅 gen_SE 有效)。
-- **start_addr**: 写入起始偏移地址。
+- **esign** [23]: 0 为 S 矩阵 (8-bit), 1 为 E 矩阵 (16-bit) (仅 gen_SE 有效)。
+- **word_addr**: 写入起始字偏移地址。
 
 ### SETAR对应寄存器:
 | SETTAR | meaning          |
@@ -159,3 +160,5 @@ SP_RAM，DP_RAM,HASH_buffer1,HASH_buffer2,INSTR_ROM
 | **ss** | 4066 | 4 | 4070 |
 
 **总深度 (Total Depth): 4070**
+
+ cmp -l -n 10752 ./output/Bout.bin  ./py/ref_matrix_ST_8bit.bin | awk '{printf "Offset: 0x%04X | A: %3d | B: %3d\n", $1-1, strtonum("0"$2), strtonum("0"$3)}

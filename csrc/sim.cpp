@@ -8,8 +8,9 @@
 #include <fstream>
 #include <iomanip>
 #include "testinit.h"
-#define MAX_SIM_TIME 270000
+#define MAX_SIM_TIME 27000000
 vluint64_t sim_time = 0;
+bool trace_on = false; // 控制波形开关：true 开启，false 关闭
 
 VTEST_PLATFORM *dut = nullptr;
 VerilatedVcdC *m_trace = nullptr;
@@ -19,17 +20,19 @@ void tick()
 {
     dut->clk = 0;
     dut->eval();
-    m_trace->dump(sim_time++);
+    if (trace_on && m_trace) m_trace->dump(sim_time);
+    sim_time++;
     dut->clk = 1;
     dut->eval();
-    m_trace->dump(sim_time++);
+    if (trace_on && m_trace) m_trace->dump(sim_time);
+    sim_time++;
 }
 
 void runtill(){
     do{
         dut->clk ^= 1;
         dut->eval();
-        m_trace->dump(sim_time);
+        if (trace_on && m_trace) m_trace->dump(sim_time);
         sim_time++;
     }while(sim_time < MAX_SIM_TIME);
 }
@@ -104,10 +107,12 @@ void interactive_memory_query() {
 void global_meminit();
 int main(int argc, char** argv, char** env) {
     dut = new VTEST_PLATFORM;
+
     Verilated::traceEverOn(true);
     m_trace = new VerilatedVcdC;
     dut->trace(m_trace, 5);
     m_trace->open("waveform.vcd");
+
     //init_seedram(mode);
     init_instram();
     dut -> rst_n = 0;
@@ -121,7 +126,7 @@ int main(int argc, char** argv, char** env) {
     tick();
     runtill();
     const char* dump_file = "./output/Bout.bin";
-    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE, 0, RAM_SIZE))
+    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE,10752, RAM_SIZE))
     {
         printf("Dumped output data from SP_RAM successfully.\n");
     }
@@ -129,17 +134,26 @@ int main(int argc, char** argv, char** env) {
     {
         printf("Failed to dump output data from SP_RAM.\n");
     }
-    dump_file = "./output/Bout.txt";
-    if(dump_ram_to_matrix(dump_file, sp_ram, RAM_SIZE,1344*8, 1344, 8))
+    // dump_file = "./output/Bout.txt";
+    // if(dump_ram_to_matrix(dump_file, sp_ram, RAM_SIZE,1344*8, 1344, 8))
+    // {
+    //     printf("Dumped output matrix from SP_RAM successfully.\n");
+    // }
+    // else
+    // {
+    //     printf("Failed to dump output matrix from SP_RAM.\n");
+    // }
+    dump_file = "./output/A_buffer_2.bin";
+    if(dump_ram_to_bin(dump_file, A_buffer_2, BUFFER_SIZE, 0, BUFFER_SIZE))
     {
-        printf("Dumped output matrix from SP_RAM successfully.\n");
+        printf("Dumped output data from SP_RAM successfully.\n");
     }
     else
     {
-        printf("Failed to dump output matrix from SP_RAM.\n");
+        printf("Failed to dump output data from SP_RAM.\n");
     }
-    dump_file = "./output/A_buffer_2.bin";
-    if(dump_ram_to_bin(dump_file, A_buffer_2, BUFFER_SIZE, 0, BUFFER_SIZE))
+    dump_file = "./output/A_buffer_1.bin";
+    if(dump_ram_to_bin(dump_file, A_buffer_1, BUFFER_SIZE, 0, BUFFER_SIZE))
     {
         printf("Dumped output data from SP_RAM successfully.\n");
     }

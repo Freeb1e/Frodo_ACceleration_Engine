@@ -30,15 +30,15 @@ module SE_sampler (
                 case (frodo_mode)
                     2'b00: begin
                         for (int j = 0; j < 13; j = j + 1)
-                            if (z >= CDT_640[j][14:0]) e_val = e_val + 16'd1;
+                            if (z > CDT_640[j][14:0]) e_val = e_val + 16'd1;
                     end
                     2'b01: begin
                         for (int j = 0; j < 11; j = j + 1)
-                            if (z >= CDT_976[j][14:0]) e_val = e_val + 16'd1;
+                            if (z > CDT_976[j][14:0]) e_val = e_val + 16'd1;
                     end
                     2'b10: begin
                         for (int j = 0; j < 7; j = j + 1)
-                            if (z >= CDT_1344[j][14:0]) e_val = e_val + 16'd1;
+                            if (z > CDT_1344[j][14:0]) e_val = e_val + 16'd1;
                     end
                     default: ;
                 endcase

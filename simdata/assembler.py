@@ -134,20 +134,29 @@ def assemble_line(line):
 def main():
     input_file = './simdata/test.asm'
     output_file = './simdata/firmware.bin'
+    txt_output_file = './simdata/firmware_table.txt'
 
     try:
-        with open(input_file, 'r') as f_in, open(output_file, 'wb') as f_out:
+        with open(input_file, 'r') as f_in, \
+             open(output_file, 'wb') as f_out, \
+             open(txt_output_file, 'w') as f_txt:
             for line_num, line in enumerate(f_in, 1):
                 try:
                     code = assemble_line(line)
                     if code is not None:
                         bin_bytes = code.to_bytes(4, byteorder='little', signed=False)
                         f_out.write(bin_bytes)
-                        print(f"Line {line_num}: {line.strip():<40} -> {code:08X}")
+                        
+                        log_str = f"Line {line_num}: {line.strip():<40} -> {code:08X}"
+                        print(log_str)
+                        f_txt.write(log_str + "\n")
                 except Exception as e:
-                    print(f"Error at line {line_num}: {line.strip()} -> {e}")
+                    err_str = f"Error at line {line_num}: {line.strip()} -> {e}"
+                    print(err_str)
+                    f_txt.write(err_str + "\n")
                     
         print(f"\n✅ Assembly successful! Binary output saved to {output_file}")
+        print(f"✅ Translation table saved to {txt_output_file}")
     except FileNotFoundError:
         print(f"Error: Input file '{input_file}' not found.")
 

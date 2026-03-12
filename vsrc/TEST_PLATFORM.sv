@@ -68,8 +68,8 @@ module TEST_PLATFORM(
     assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC); 
     assign prebusy = {pre_systolicbusy,pre_sha3busy};
     assign instr_bitbusy = {(OPCODE_D == `SYSOPCODE),(OPCODE_D == `SHAOPCODE)};
-    assign ready =!(|(instr_bitbusy & bitbusy));
-
+    //assign ready =!(|(instr_bitbusy & bitbusy));
+        assign ready =!(|instr_bitbusy & |bitbusy);
     always_ff@(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             pc_reg <= 32'd0;
