@@ -1,8 +1,14 @@
 `include "define.sv"
 module TEST_PLATFORM(
         input logic clk,
-        input logic rst_n
+        input logic rst_n,
+        // 添加查询接口以防止综合优化
+        input logic [2:0]  query_id,
+        input logic [31:0] query_addr,
+        output logic [63:0] query_data,
+        output logic [1:0]  status
     );
+    assign status = bitbusy; // 导出状态信号
     logic [31:0] addr_sp_1,addr_sp_2;
     logic [31:0] addr_dp_1,addr_dp_2;
     logic [31:0] addr_HASH_1,addr_HASH_2;
@@ -65,11 +71,11 @@ module TEST_PLATFORM(
     logic pre_systolicbusy,pre_sha3busy;
     logic [1:0] prebusy,instr_bitbusy;
     assign pre_systolicbusy = (OPCODE_D == `SYSOPCODE)&&(FUNC_D == `systolic_calc_FUNC);
-    assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC); 
+    assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC);
     assign prebusy = {pre_systolicbusy,pre_sha3busy};
     assign instr_bitbusy = {(OPCODE_D == `SYSOPCODE),(OPCODE_D == `SHAOPCODE)};
     //assign ready =!(|(instr_bitbusy & bitbusy));
-        assign ready =!(|instr_bitbusy & |bitbusy);
+    assign ready =!(|instr_bitbusy & |bitbusy);
     always_ff@(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             pc_reg <= 32'd0;
@@ -91,7 +97,7 @@ module TEST_PLATFORM(
             pc_choose_delay <= pc_reg[2];
         end
     end
-    assign instr_F = (ready_d)? (pc_choose_delay == 1'b0) ? instr64[31:0] : instr64[63:32] : 32'hFFFF_FFFF; //根据PC的最低两位选择指令的高32位或低32位，资源占用时输出无效指令
+assign instr_F = (ready_d)? (pc_choose_delay == 1'b0) ? instr64[31:0] : instr64[63:32] : 32'hFFFF_FFFF; //根据PC的最低两位选择指令的高32位或低32位，资源占用时输出无效指令
 
     logic ready_d;
     always_ff@(posedge clk or negedge rst_n) begin
@@ -102,7 +108,7 @@ module TEST_PLATFORM(
             ready_d <= ready;
         end
     end
-    
+`ifdef SIMULATION
     // block RAM instances
     block_ram_dpi #(
                       .BRAM_ID 	(0  ))
@@ -181,4 +187,100 @@ module TEST_PLATFORM(
                       .wen   	(1'h0    ),
                       .rdata 	(instr64)
                   );
+`else
+    // 硬件综合分支：增加查询逻辑防止优化
+    logic [63:0] q_data;
+    always_comb begin
+        case(query_id)
+            3'd0: q_data = bram_rdata_sp_1;
+            3'd1: q_data = bram_rdata_sp_2;
+            3'd2: q_data = bram_rdata_dp_1;
+            3'd3: q_data = bram_rdata_dp_2;
+            3'd4: q_data = bram_rdata_HASH1;
+            3'd5: q_data = bram_rdata_HASH2;
+            3'd6: q_data = instr64;
+            default: q_data = 64'h0;
+        endcase
+    end
+    assign query_data = q_data;
+
+    // 将查询地址应用到 BRAM（这里采用简单的多路复用，
+    // 如果 query_id 在有效范围内，地址将被 query_addr 覆盖，从而保证地址线也被综合）
+    logic [31:0] real_addr_sp1, real_addr_sp2, real_addr_dp1, real_addr_dp2;
+    logic [31:0] real_addr_h1, real_addr_h2, real_pc;
+
+    assign real_addr_sp1 = (query_id == 3'd0) ? query_addr : addr_sp_1;
+    assign real_addr_sp2 = (query_id == 3'd1) ? query_addr : addr_sp_2;
+    assign real_addr_dp1 = (query_id == 3'd2) ? query_addr : addr_dp_1;
+    assign real_addr_dp2 = (query_id == 3'd3) ? query_addr : addr_dp_2;
+    assign real_addr_h1  = (query_id == 3'd4) ? query_addr : addr_HASH_1;
+    assign real_addr_h2  = (query_id == 3'd5) ? query_addr : addr_HASH_2;
+    assign real_pc       = (query_id == 3'd6) ? query_addr : pc_reg;
+
+    SP_RAM u_SP_RAM (
+               .clka(clk),
+               .wea(wen_sp_1 ? 8'hFF : 8'h00),
+               .addra(real_addr_sp1[14:3]), 
+               .dina(bram_wdata_sp_1),
+               .douta(bram_rdata_sp_1),
+               .clkb(clk),
+               .enb(1'b1),
+               .web(wen_sp_2 ? sp2_wmask : 8'h00),
+               .addrb(real_addr_sp2[14:3]),
+               .dinb(bram_wdata_sp_2),
+               .doutb(bram_rdata_sp_2)
+           );
+    IROM u_IROM (
+             .clka(clk),
+             .wea(8'h00),
+             .addra(real_pc[14:3]), 
+             .dina(64'd0),
+             .douta(instr64),
+             .clkb(clk),
+             .enb(1'b0),
+             .web(8'h00),
+             .addrb(12'd0),
+             .dinb(64'd0),
+             .doutb()
+         );
+    DP_RAM u_DP_RAM (
+               .clka(clk),
+               .wea(wen_dp_1 ? 8'hFF : 8'h00),
+               .addra(real_addr_dp1[13:3]), 
+               .dina(bram_wdata_dp_1),
+               .douta(bram_rdata_dp_1),
+               .clkb(clk),
+               .enb(1'b1),
+               .web(wen_dp_2 ? dp2_wmask : 8'h00),
+               .addrb(real_addr_dp2[13:3]),
+               .dinb(bram_wdata_dp_2),
+               .doutb(bram_rdata_dp_2)
+           );
+    A_buffer1 u_A_buffer1 (
+               .clka(clk),
+               .wea(wen_HASH_1 ? 8'hFF : 8'h00),
+               .addra(real_addr_h1[13:3]), 
+               .dina(bram_wdata_HASH),
+               .douta(bram_rdata_HASH1),
+               .clkb(clk),
+               .enb(1'b0),
+               .web(8'h00),
+               .addrb(11'd0),
+               .dinb(64'd0),
+               .doutb()
+           );
+    A_buffer2 u_A_buffer2 (
+               .clka(clk),
+               .wea(wen_HASH_2 ? 8'hFF : 8'h00),
+               .addra(real_addr_h2[13:3]), 
+               .dina(bram_wdata_HASH),
+               .douta(bram_rdata_HASH2),
+               .clkb(clk),
+               .enb(1'b0),
+               .web(8'h00),
+               .addrb(11'd0),
+               .dinb(64'd0),
+               .doutb()
+           );
+`endif
 endmodule

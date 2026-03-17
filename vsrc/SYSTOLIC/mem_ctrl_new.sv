@@ -271,6 +271,7 @@ module mem_ctrl(
     end
 
     always_comb begin
+        save_wen = 1'b0;
         case(current_state)
             AS_SAVE: begin
                 save_wen =(cnt_line==matrix_size_reg + 32'd3 && count_4>0)||(cnt_line ==matrix_size_reg + 32'd4 && count_4 == 0)? 1'b1 : 1'b0;

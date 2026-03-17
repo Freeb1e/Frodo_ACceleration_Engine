@@ -139,7 +139,7 @@ module systolic_pe#(
             b_reg<= '0;
             sum_out<= '0;
         end
-        if(enable) begin
+        else if(enable) begin
             if(mode==1'b1) begin
                 if(state==1'b1) begin
                     a_reg<= a_wire;

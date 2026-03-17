@@ -212,7 +212,7 @@ module sha3(    input wire          clk,
           blk[addr[7:3]] <= din_swap;
      end
 //======debug==========
-logic [4:0] debug_addr;
+wire [4:0] debug_addr;
 assign debug_addr = addr[7:3];
 
 endmodule // sha3
