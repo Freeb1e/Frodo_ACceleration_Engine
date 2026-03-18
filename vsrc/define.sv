@@ -8,6 +8,7 @@
 `define SHAKE_seedaddrset_FUNC 3'd0
 `define SHAKE_seedset_FUNC 3'd1
 `define SHAKE_squeezeonce_FUNC 3'd2
+`define SHAKE_absorb_FUNC 3'd3
 `define SHAKE_gen_A_FUNC 3'd4
 `define SHAKE_gen_SE_FUNC 3'd5
 `define SHAKE_dumpaword_FUNC 3'd6

@@ -65,6 +65,15 @@ def assemble_line(line):
             opcode     = OPCODE_SHAKE & 0x7F
             machine_code = (func << 7) | opcode
 
+        elif inst == "SHAKE_absorb":
+            # 格式: SHAKE_absorb last_block_words, seg_absorb_num
+            # last_block_words [22:18] 5 bits, seg_absorb_num [17:10] 8 bits
+            last_words = args[0] & 0x1F   # [22:18] 5 bits
+            seg_num    = args[1] & 0xFF   # [17:10] 8 bits
+            func       = 3 & 0x7          # [9:7] FUNC = 3
+            opcode     = OPCODE_SHAKE & 0x7F
+            machine_code = (last_words << 18) | (seg_num << 10) | (func << 7) | opcode
+
         elif inst == "systolic_bufswap":
             # 格式: systolic_bufswap (无操作数)
             func       = 2 & 0x7          # [9:7] FUNC = 2

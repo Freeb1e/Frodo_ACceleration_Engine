@@ -36,6 +36,14 @@ class FaceLib:
     def shake_squeezeonce(self):
         self._emit("SHAKE_squeezeonce")
 
+    def shake_absorb(self, last_block_words, seg_absorb_num):
+        """
+        触发从当前地址开始吸收。
+        :param last_block_words: 本段最后块的有效字数 (0表示整块有效)
+        :param seg_absorb_num: 本段吸收块数
+        """
+        self._emit(f"SHAKE_absorb {last_block_words}, {seg_absorb_num}")
+
     def shake_gen_a(self, mode, offset, start_addr):
         self._emit(f"SHAKE_gen_A {mode}, {offset}, {hex(start_addr)}")
 

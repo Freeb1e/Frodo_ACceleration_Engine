@@ -8,9 +8,9 @@
 #include <fstream>
 #include <iomanip>
 #include "testinit.h"
-#define MAX_SIM_TIME 27000000
+#define MAX_SIM_TIME 27000
 vluint64_t sim_time = 0;
-bool trace_on = false; // 控制波形开关：true 开启，false 关闭
+bool trace_on = true; // 控制波形开关：true 开启，false 关闭
 
 VTEST_PLATFORM *dut = nullptr;
 VerilatedVcdC *m_trace = nullptr;
@@ -126,7 +126,7 @@ int main(int argc, char** argv, char** env) {
     tick();
     runtill();
     const char* dump_file = "./output/Bout.bin";
-    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE,10752, RAM_SIZE))
+    if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE,0, RAM_SIZE))
     {
         printf("Dumped output data from SP_RAM successfully.\n");
     }
@@ -176,5 +176,16 @@ void global_meminit(){
     for(int i=0; i<8; i++){
         pmem_write((4048*8 + i*8), 0, 0x4242424242424242, 0xFF);
     }
+
+
+    // test_file = "./simdata/raminit/Bout.bin";
+    // if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    // {
+    //     printf("Loaded S data into HASH RAM successfully.\n");
+    // }
+    // else
+    // {
+    //     printf("Failed to load S data into HASH RAM.\n");
+    // }
     //pmem_write(4, 0, 0xACBDABCD, 0xFF); 
 }
