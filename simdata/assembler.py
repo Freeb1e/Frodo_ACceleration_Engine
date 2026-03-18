@@ -81,14 +81,6 @@ def assemble_line(line):
             machine_code = (offset << 25) | (start_addr << 10) | (func << 7) | opcode
 
 
-        elif inst == "SHAKE_dumponce":
-            # 格式: SHAKE_dumponce bram_id, start_addr
-            bram_id    = args[0] & 0x1    # [25] 1 bit
-            start_addr = args[1] & 0x7FFF # [24:10] 15 bits
-            func       = 3 & 0x7          # [9:7] FUNC = 3
-            opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (bram_id << 25) | (start_addr << 10) | (func << 7) | opcode
-
         elif inst == "SHAKE_gen_A":
             # 格式: SHAKE_gen_A mode, offset, start_addr
             # mode [31:30], offset [29:25], start_addr [24:10]

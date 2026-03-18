@@ -53,9 +53,6 @@ class FaceLib:
     def shake_dumpaword(self, offset, start_addr):
         self._emit(f"SHAKE_dumpaword {offset}, {hex(start_addr)}")
 
-    def shake_dumponce(self, bram_id, start_addr):
-        self._emit(f"SHAKE_dumponce {bram_id}, {hex(start_addr)}")
-
     def shake_absorb_genA(self, matrix_sign, block_num, row_index):
         self._emit(f"SHAKE_absorb_genA {matrix_sign}, {block_num}, {hex(row_index)}")
 

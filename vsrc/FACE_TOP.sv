@@ -78,7 +78,7 @@ module FACE_TOP(
                     systolic_busy <=prebusy[1];
             end
 
-            if((sha3_ready_rise && !sha3_dumponce && OPCODE != `SHAOPCODE && !sha3_squeezeonce) || sampling_wen) begin
+            if((sha3_ready_rise && OPCODE != `SHAOPCODE && !sha3_squeezeonce) || sampling_wen) begin
                 sha3busy <= 1'b0;
             end
             else begin
@@ -295,9 +295,9 @@ module FACE_TOP(
                     end
                 end
                 else if(dumpram_id == 1'b0) begin
-                    // 其他指令（genSE, dumponce等）维持原有 RAM 路由
+                    // 其他指令（genSE等）维持原有 RAM 路由
                     addr_sp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
-                    wen_sp_2 = dump_wen || sampling_wen;
+                    wen_sp_2 = sampling_wen;
                     //wen_sp_2 =1; // 只在采样时写入，dump操作由外部控制写使能
                     if(sample_mode == 2'd2 && !is_e_matrix_reg) begin
                         bram_wdata_sp_2 = (addr_sp_2[2] == 1'b0) ? {32'd0, final_sha3_data_out[31:0]} : {final_sha3_data_out[31:0],32'd0};
@@ -308,7 +308,7 @@ module FACE_TOP(
                 end
                 else begin
                     addr_dp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
-                    wen_dp_2 = dump_wen || sampling_wen;
+                    wen_dp_2 = sampling_wen;
                     if(sample_mode == 2'd2 && !is_e_matrix_reg) begin
                         bram_wdata_dp_2 = (addr_dp_2[2] == 1'b0) ? {32'd0, final_sha3_data_out[31:0]} : {final_sha3_data_out[31:0],32'd0};
                         dp2_wmask = (addr_dp_2[2] == 1'b0) ? 8'h0F : 8'hF0; // 根据地址最低位选择写入半个字
@@ -346,14 +346,12 @@ module FACE_TOP(
     logic [63:0] seed_data_in;
     logic sha3_start;
     logic sha3_squeezeonce;
-    logic sha3_dumponce;
 
     logic [4:0] sha3_sample_addr;
     logic sha3_ready;
     logic sha3_optready;
     logic [63:0] sha3_data_out;
     logic [31:0] sha3_addr_perip;
-    logic dump_wen;
 
     logic [31:0] SEED_BASE_ADDR;
     logic [7:0] absorb_num,last_block_bytes;
@@ -385,7 +383,6 @@ module FACE_TOP(
             last_block_bytes <= 8'd0;
             sha3_start <= 1'b0;
             sha3_squeezeonce <= 1'b0;
-            sha3_dumponce <= 1'b0;
             shakemode <= 1'b0;
             dump_BASE_addr <= 15'd0;
             dumpram_id <= 1'b0;
@@ -414,12 +411,6 @@ module FACE_TOP(
                     end
                     `SHAKE_squeezeonce_FUNC: begin
                         sha3_squeezeonce <= 1'b1;
-                    end
-                    `SHAKE_dumponce_FUNC: begin
-                        sha3_dumponce <= 1'b1;
-                        dump_BASE_addr <= instr[24:10];
-                        dumpram_id <= instr[25];
-                        sample_mode <= 2'd0;
                     end
                     `SHAKE_gen_A_FUNC: begin
                         sampling_wen <= 1'b1;
@@ -496,8 +487,6 @@ module FACE_TOP(
                 sha3_start <= 1'b0;
             if(sha3_squeezeonce)
                 sha3_squeezeonce <= 1'b0;
-            if(sha3_dumponce)
-                sha3_dumponce <= 1'b0;
         end
     end
 
@@ -535,14 +524,12 @@ module FACE_TOP(
                   .last_block_bytes 	(last_block_bytes  ),
                   .sha3_start       	(sha3_start        ),
                   .sha3_squeezeonce 	(sha3_squeezeonce  ),
-                  .sha3_dumponce    	(sha3_dumponce     ),
                   .shakemode        	(shakemode         ),
                   .sha3_sample_addr 	(sha3_sample_addr  ),
                   .sha3_ready       	(sha3_ready        ),
                   .sha3_optready    	(sha3_optready     ),
                   .sha3_data_out    	(sha3_data_out     ),
-                  .sha3_addr_perip  	(sha3_addr_perip   ),
-                  .dump_wen         	(dump_wen          )
+                  .sha3_addr_perip  	(sha3_addr_perip   )
               );
 
 

@@ -6,14 +6,12 @@ module sha3_ctrl(
         input logic [7:0] last_block_bytes,
         input logic sha3_start,
         input logic sha3_squeezeonce,
-        input logic sha3_dumponce,
         input logic shakemode, // 0: SHAKE128, 1: SHAKE256
         input logic [4:0] sha3_sample_addr,
         output logic sha3_ready,
         output logic sha3_optready,
         output logic [63:0] sha3_data_out,
-        output logic [31:0] sha3_addr_perip,
-        output logic dump_wen
+        output logic [31:0] sha3_addr_perip
     );
     logic       wr_keccak;
     logic [6:0] addr_keccak;
@@ -27,15 +25,13 @@ module sha3_ctrl(
     logic [4:0] word_counter,word_counter_delay;
     logic absorb_oncedone;
     logic squeeze_oncedone;
-    logic dump_oncedone;
 
     assign sha3_ready = (current_state == WAITSQUEEZE) ? 1'b1 : 1'b0;
     parameter IDLE         = 3'd0,
               ABSORB       = 3'd1,
               WAITABSORB   = 3'd2,
               WAITSQUEEZE  = 3'd3,
-              SQUEEZE      = 3'd4,
-              DUMP         = 3'd5;
+              SQUEEZE      = 3'd4;
     parameter SHAKE128_RATE = 21,
               SHAKE256_RATE = 17;
     logic [2:0] current_state, next_state;
@@ -43,12 +39,11 @@ module sha3_ctrl(
     logic [31:0] addr_seed,addr_output;
     logic [7:0] total_absorb_bytes;
 
-    logic [6:0] addr_keccak_absorb,addr_keccak_absorb_delay,addr_keccak_dump,addr_sample;
+    logic [6:0] addr_keccak_absorb,addr_keccak_absorb_delay,addr_sample;
     logic [63:0] din_keccak_delay;
     assign addr_keccak_absorb = {1'b0,word_counter , 1'b0};
-    assign addr_keccak_dump = {1'b1,word_counter , 1'b0};
     assign addr_sample = {1'b1,sha3_sample_addr , 1'b0};
-    assign addr_keccak = (current_state == ABSORB)? addr_keccak_absorb_delay:(current_state == DUMP)? addr_keccak_dump : addr_sample;
+    assign addr_keccak = (current_state == ABSORB)? addr_keccak_absorb_delay : addr_sample;
     assign sha3_addr_perip = (current_state == ABSORB)? addr_seed : addr_output;
     assign sha3_data_out = dout_keccak;
     assign squeeze_oncedone = ready_keccak && (!next_keccak_squeeze);
@@ -119,8 +114,6 @@ module sha3_ctrl(
             WAITSQUEEZE: begin
                 if(sha3_squeezeonce)
                     next_state = SQUEEZE;
-                else if(sha3_dumponce)
-                    next_state = DUMP;
                 else
                     next_state = WAITSQUEEZE;
             end
@@ -129,12 +122,6 @@ module sha3_ctrl(
                     next_state = WAITSQUEEZE;
                 else
                     next_state = SQUEEZE;
-            end
-            DUMP: begin
-                if(dump_oncedone)
-                    next_state = WAITSQUEEZE;
-                else 
-                    next_state = DUMP;
             end
             default:
                 next_state = IDLE;
@@ -161,16 +148,12 @@ module sha3_ctrl(
                            absorb_counter <= absorb_counter + 8'd1;
                        end else begin
                            word_counter <= word_counter + 5'd1;
-                           addr_seed <= addr_seed + 32'd8;                         
-                       end 
+                           addr_seed <= addr_seed + 32'd8;
+                       end
                     end else begin
                        word_counter <= 5'd0;
                     end
                     absorb_oncedone <= (word_counter == words_rate -5'd1) ? 1'b1 : 1'b0;
-                end else if(current_state == DUMP) begin
-                        word_counter <= word_counter + 5'd1;
-                        addr_output <= addr_output + 32'd8;
-                        dump_oncedone <= (word_counter == words_rate -5'd2) ? 1'b1 : 1'b0;
                 end else begin
                     word_counter <= 5'd0;
                     addr_output <= 32'd0;
@@ -178,8 +161,6 @@ module sha3_ctrl(
             end
         end
     end
-    assign dump_wen = (current_state == DUMP) ? 1'b1 : 1'b0;
-
     always_ff@(posedge clk or negedge rst_n)begin
         if(!rst_n)begin
             wr_keccak <= 1'b0;
