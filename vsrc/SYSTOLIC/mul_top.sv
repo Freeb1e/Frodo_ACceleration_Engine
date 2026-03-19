@@ -5,6 +5,8 @@ module mul_top(
         input logic rst_n,
         input logic [2:0] mem_mode,//0:idle 1:AS 2:SA 3:SB 4:BS
         input logic calc_init,
+        input logic inpack,   // 读取时对16bit元素高低字节交换(unpack)
+        input logic outpack,  // 输出时对16bit元素高低字节交换(pack)
 
         input logic [63:0] bram_data_1,
         input logic [63:0] bram_data_2,
@@ -27,6 +29,15 @@ module mul_top(
     );
     logic [63:0] data_left;
     logic [63:0] data_right;
+
+    // inpack: 对读取的左矩阵数据进行16bit元素高低字节交换
+    logic [63:0] data_left_unpacked;
+    assign data_left_unpacked = inpack ? {
+        data_left[55:48], data_left[63:56],  // element 3: swap bytes
+        data_left[39:32], data_left[47:40],  // element 2: swap bytes
+        data_left[23:16], data_left[31:24],  // element 1: swap bytes
+        data_left[7:0],   data_left[15:8]    // element 0: swap bytes
+    } : data_left;
 
     logic transposition_slect;
 
@@ -92,7 +103,7 @@ module mul_top(
                               u_transposition_top_default_1(
                                   .clk        	(clk         ),
                                   .rst_n      	(rst_n       ),
-                                  .martix_in  	(data_left   ),
+                                  .martix_in  	(data_left_unpacked   ),
                                   .martix_out 	(martix_out_transposition_1  ),
                                   .mode       	(transposition_mode_1        ),
                                   //.dir        (transposition_dir       ),
@@ -105,7 +116,7 @@ module mul_top(
                               u_transposition_top_default_2(
                                   .clk        	(clk         ),
                                   .rst_n      	(rst_n       ),
-                                  .martix_in  	(data_left   ),
+                                  .martix_in  	(data_left_unpacked   ),
                                   .martix_out 	(martix_out_transposition_2  ),
                                   .mode       	(transposition_mode_2      ),
                                   //.dir        (transposition_dir      ),
@@ -264,6 +275,11 @@ module mul_top(
                 .rst_n 	(rst_n  )
             );
     always_comb begin
+        // outpack: 对输出数据进行16bit元素高低字节交换
+        if(outpack) begin
+            bram_savedata = {sum4[7:0], sum4[15:8], sum3[7:0], sum3[15:8], sum2[7:0], sum2[15:8], sum1[7:0], sum1[15:8]};
+        end else begin
             bram_savedata = {sum4, sum3, sum2, sum1};
+        end
     end
 endmodule

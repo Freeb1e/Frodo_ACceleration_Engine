@@ -54,6 +54,7 @@ module FACE_TOP(
     logic [31:0] BASE_ADDR_LEFT,BASE_ADDR_RIGHT,BASE_ADDR_ADDSRC,BASE_ADDR_SAVE;
     logic [1:0] setaddr;//控制设置的BASE_ADDR是哪一个
     logic [1:0] ctrl_mode , ctrl_mode_REG;
+    logic inpack_REG, outpack_REG;
     logic systolic_busy;
     assign BASE_ADDR = instr[30:12];
     assign FUNC = instr[9:7];
@@ -105,6 +106,8 @@ module FACE_TOP(
             BASE_ADDR_SAVE <= 32'd0;
             calc_init <= 1'b0;
             ctrl_mode_REG <= 2'b00;
+            inpack_REG <= 1'b0;
+            outpack_REG <= 1'b0;
             hash_buffer_sel <= 1'b0;
         end
         else begin
@@ -125,6 +128,8 @@ module FACE_TOP(
             if(FUNC == `systolic_calc_FUNC && OPCODE == `SYSOPCODE) begin
                 if(!systolic_busy ||1'b1) begin
                     ctrl_mode_REG <= ctrl_mode;
+                    inpack_REG <= instr[24];
+                    outpack_REG <= instr[23];
                     calc_init <= 1'b1;
                     MATRIX_SIZE <= instr[22:12];
                 end
@@ -327,6 +332,8 @@ module FACE_TOP(
                 .rst_n            	(rst_n             ),
                 .mem_mode         	(mem_mode          ),
                 .calc_init        	(calc_init         ),
+                .inpack           	(inpack_REG        ),
+                .outpack          	(outpack_REG       ),
                 .bram_data_1      	(bram_data_1       ),
                 .bram_data_2      	(bram_data_2       ),
                 .bram_data_3      	(bram_data_3       ),

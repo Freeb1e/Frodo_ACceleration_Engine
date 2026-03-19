@@ -36,12 +36,14 @@ def assemble_line(line):
             machine_code = (base_addr << 12) | (settar << 10) | (func << 7) | opcode
 
         elif inst == "systolic_calc":
-            # 格式: systolic_calc MATRIX_SIZE, ctrl_mode
+            # 格式: systolic_calc MATRIX_SIZE, ctrl_mode, inpack, outpack
             matrix_size = args[0] & 0x7FF # [22:12] 11 bits
             ctrl_mode   = args[1] & 0x3   # [11:10] 2 bits
+            inpack      = (args[2] & 0x1) if len(args) > 2 else 0  # [24] 1 bit
+            outpack     = (args[3] & 0x1) if len(args) > 3 else 0  # [23] 1 bit
             func        = 1 & 0x7         # [9:7] FUNC = 1
             opcode      = OPCODE_SYSTOLIC & 0x7F
-            machine_code = (matrix_size << 12) | (ctrl_mode << 10) | (func << 7) | opcode
+            machine_code = (inpack << 24) | (outpack << 23) | (matrix_size << 12) | (ctrl_mode << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_seedaddrset":
             # 格式: SHAKE_seedaddrset shakemode, start_addr
