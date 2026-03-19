@@ -44,8 +44,14 @@ class FaceLib:
         """
         self._emit(f"SHAKE_absorb {last_block_words}, {seg_absorb_num}")
 
-    def shake_gen_a(self, mode, offset, start_addr):
-        self._emit(f"SHAKE_gen_A {mode}, {offset}, {hex(start_addr)}")
+    def shake_gen_a(self, mode, row_len_flag, row_index):
+        """
+        触发 A 矩阵采样硬件循环，一次指令生成连续 4 行。
+        :param mode: 标准 (0:640, 1:976, 2:1344)
+        :param row_len_flag: 行长度选择 (0:1344, 1:976)
+        :param row_index: 起始行号，硬件自动生成 row_index ~ row_index+3
+        """
+        self._emit(f"SHAKE_gen_A {mode}, {row_len_flag}, {hex(row_index)}")
 
     def shake_gen_se(self, mode, offset, bram_id, esign, word_addr):
         """

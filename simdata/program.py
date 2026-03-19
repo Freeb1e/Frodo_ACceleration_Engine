@@ -33,14 +33,8 @@ def generate_keygen():
 
     ##生成A矩阵的四行
     face.shake_seedaddrset(0,32512)
-    linenum = 0;
-    for i in range(4):
-        face.comment(f"Round {i}")
-        face.shake_absorb_genA(1,2,linenum + i)
-        for j in range(16):
-            for k in range(21):
-                face.shake_gen_a(2, k,1344*2*i + 168 * j + 8 * k)
-            face.shake_squeezeonce()
+    linenum = 0
+    face.shake_gen_a(2, 0, linenum)
     face.systolic_bufswap()
     face.systolic_addrset(0, 0)
     face.systolic_addrset(0, 1)
@@ -58,13 +52,7 @@ def generate_keygen():
     for block in range(1,336):
         ##生成A矩阵的四行
         face.shake_seedaddrset(0,32512)
-        for i in range(4):
-            face.comment(f"Round {i}")
-            face.shake_absorb_genA(1,2,block *4 + i)
-            for j in range(16):
-                for k in range(21):
-                    face.shake_gen_a(2, k,1344*2*i + 168 * j + 8 * k)
-                face.shake_squeezeonce()
+        face.shake_gen_a(2, 0, block * 4)
         face.systolic_bufswap()
         ##脉动阵列计算
         face.systolic_addrset(0, 0)

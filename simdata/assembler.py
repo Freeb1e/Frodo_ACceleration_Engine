@@ -93,14 +93,15 @@ def assemble_line(line):
 
 
         elif inst == "SHAKE_gen_A":
-            # 格式: SHAKE_gen_A mode, offset, start_addr
-            # mode [31:30], offset [29:25], start_addr [24:10]
-            mode       = args[0] & 0x3    # [31:30] 2 bits
-            offset     = args[1] & 0x1F   # [29:25] 5 bits
-            start_addr = args[2] & 0x7FFF # [24:10] 15 bits
+            # 格式: SHAKE_gen_A mode, row_len_flag, row_index
+            # mode [31:30], row_len_flag [29], row_index [25:10]
+            # [28:26] 保留为 0，硬件内部固定从地址0开始循环生成4行
+            mode       = args[0] & 0x3     # [31:30] 2 bits
+            row_len    = args[1] & 0x1     # [29] 1 bit (0:1344, 1:976)
+            row_index  = args[2] & 0xFFFF  # [25:10] 16 bits
             func       = 4 & 0x7          # [9:7] FUNC = 4
             opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (mode << 30) | (offset << 25) | (start_addr << 10) | (func << 7) | opcode
+            machine_code = (mode << 30) | (row_len << 29) | (row_index << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_gen_SE":
             # 【特殊处理】 mode[31:30], offset[29:25], bram_id[24], esign[23], word_addr[22:10]

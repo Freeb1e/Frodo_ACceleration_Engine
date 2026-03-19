@@ -79,7 +79,10 @@ module FACE_TOP(
                     systolic_busy <=prebusy[1];
             end
 
-            if((sha3_ready_rise && OPCODE != `SHAOPCODE && !sha3_squeezeonce) || sampling_wen || sha3_wait_cmd) begin
+            if(((sha3_ready_rise && OPCODE != `SHAOPCODE && !sha3_squeezeonce) || sampling_wen || sha3_wait_cmd) && !genA_loop_active) begin
+                sha3busy <= 1'b0;
+            end
+            else if(genA_loop_done_pulse) begin
                 sha3busy <= 1'b0;
             end
             else begin
@@ -386,6 +389,24 @@ module FACE_TOP(
     logic [3:0] block_num;
     logic hash_buffer_sel; // 0: Systolic->HASH1, SHAKE->HASH2 | 1: Systolic->HASH2, SHAKE->HASH1
     logic MATRIX_sign;
+    logic genA_loop_active;
+    logic genA_loop_done_pulse;
+    logic [2:0] genA_loop_state;
+    logic genA_row_len_flag; // 0:1344, 1:976
+    logic [14:0] genA_curr_addr;
+    logic [15:0] genA_work_row_index;
+    logic [1:0] genA_row_idx;
+    logic [8:0] genA_word_idx;
+    logic [8:0] genA_row_words;
+    logic [11:0] genA_row_stride;
+    logic [4:0] genA_sample_offset;
+    localparam [2:0] GENA_IDLE        = 3'd0,
+                     GENA_ROW_PREP    = 3'd1,
+                     GENA_WAIT_ABSORB = 3'd2,
+                     GENA_SAMPLE_REQ  = 3'd3,
+                     GENA_SAMPLE_DONE = 3'd4,
+                     GENA_ISSUE_SQ    = 3'd5,
+                     GENA_WAIT_SQ     = 3'd6;
     assign dump_addr = {17'd0,dump_BASE_addr};
 
     always_ff@(posedge clk or negedge rst_n) begin
@@ -411,8 +432,21 @@ module FACE_TOP(
             sampling_wen <= 1'b0;
             MATRIX_sign <= 1'b0;
             absorb_genA_addr <= 32'd0;
+            genA_loop_active <= 1'b0;
+            genA_loop_done_pulse <= 1'b0;
+            genA_loop_state <= GENA_IDLE;
+            genA_row_len_flag <= 1'b0;
+            genA_curr_addr <= 15'd0;
+            genA_work_row_index <= 16'd0;
+            genA_row_idx <= 2'd0;
+            genA_word_idx <= 9'd0;
+            genA_row_words <= 9'd0;
+            genA_row_stride <= 12'd0;
+            genA_sample_offset <= 5'd0;
         end
         else begin
+            genA_loop_done_pulse <= 1'b0;
+
             if(OPCODE == `SHAOPCODE) begin
                 case(FUNC)
                     `SHAKE_seedaddrset_FUNC: begin
@@ -434,12 +468,18 @@ module FACE_TOP(
                         last_block_words <= instr[22:18];
                     end
                     `SHAKE_gen_A_FUNC: begin
-                        sampling_wen <= 1'b1;
-                        dump_BASE_addr <= instr[24:10];
-                        // dumpram_id <= instr[25]; // Removed
                         sample_mode <= 2'd1;
                         frodo_mode_reg <= instr[31:30];
-                        sha3_sample_addr <= instr[29:25];
+                        genA_row_len_flag <= instr[29];
+                        genA_curr_addr <= 15'd0;
+                        row_index_reg <= instr[25:10];
+                        genA_work_row_index <= instr[25:10];
+                        genA_row_idx <= 2'd0;
+                        genA_word_idx <= 9'd0;
+                        genA_sample_offset <= 5'd0;
+                        genA_row_stride <= instr[29] ? 12'd1952 : 12'd2688;
+                        genA_loop_active <= 1'b1;
+                        genA_loop_state <= GENA_ROW_PREP;
                     end
                     `SHAKE_gen_SE_FUNC: begin
                         sampling_wen <= 1'b1;
@@ -462,6 +502,7 @@ module FACE_TOP(
                         MATRIX_sign <= instr[31];
                         absorb_genA_active <= 1'b1;
                         absorb_genA_state <= 4'd1;
+                        genA_loop_active <= 1'b0;
                         sha3_start <= 1'b1;
                     end
                     default:
@@ -473,50 +514,134 @@ module FACE_TOP(
             if(sampling_wen)
                 sampling_wen <= 1'b0;
 
-            case(absorb_genA_state)
-                4'd0: begin
-
-                end
-                4'd1: begin
-                    absorb_genA_state <= 4'd2;
-                    sha3_absorb <= 1'b1;
-                    if(MATRIX_sign) begin
-                        last_block_bytes <= block_num * 4'd8 + 8'd2;
-                        last_block_words <= 5'((block_num * 4'd8 + 8'd2) >> 3);
-                    end else begin
-                        last_block_bytes <= block_num * 4'd8 + 8'd1;
-                        last_block_words <= 5'((block_num * 4'd8 + 8'd1) >> 3);
+            if(absorb_genA_active) begin
+                case(absorb_genA_state)
+                    4'd1: begin
+                        absorb_genA_state <= 4'd2;
+                        sha3_absorb <= 1'b1;
+                        if(MATRIX_sign) begin
+                            last_block_bytes <= block_num * 4'd8 + 8'd2;
+                            last_block_words <= 5'((block_num * 4'd8 + 8'd2) >> 3);
+                        end else begin
+                            last_block_bytes <= block_num * 4'd8 + 8'd1;
+                            last_block_words <= 5'((block_num * 4'd8 + 8'd1) >> 3);
+                        end
+                        absorb_genA_addr <= SEED_BASE_ADDR;
                     end
-                    absorb_genA_addr <= SEED_BASE_ADDR; 
-                end 
-                4'd2: begin
-                    absorb_genA_state <= 4'd3;
-                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
-                    seed_A_buffer[127:64] <= seed_A_buffer[63:0];
-                    absorb_genA_addr <= absorb_genA_addr + 32'd8;
-                end
-                4'd3: begin
-                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
-                    seed_A_buffer[127:64] <= seed_A_buffer[63:0];
-                    absorb_genA_state <= 4'd4;
-                    absorb_genA_addr <= absorb_genA_addr + 32'd8;
-                end
-                4'd4: begin
-                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
-                    seed_A_buffer[127:64] <= seed_A_buffer[63:0];
-                    absorb_genA_state <= 4'd5;
-                    absorb_num <= 8'd1;
-                    seg_absorb_num <= 8'd1;
-                    absorb_genA_addr <= absorb_genA_addr + 32'd8;
-                end
-                default: begin
-                    seed_A_buffer[63:0] <= bram_rdata_sp_1;
-                    seed_A_buffer[127:64] <= seed_A_buffer[63:0];
-                    absorb_genA_state <= absorb_genA_state + 4'd1;
-                    absorb_num <= 8'd1;
-                    absorb_genA_addr <= absorb_genA_addr + 32'd8;
-                end
-            endcase
+                    4'd2: begin
+                        absorb_genA_state <= 4'd3;
+                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[127:64] <= seed_A_buffer[63:0];
+                        absorb_genA_addr <= absorb_genA_addr + 32'd8;
+                    end
+                    4'd3: begin
+                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[127:64] <= seed_A_buffer[63:0];
+                        absorb_genA_state <= 4'd4;
+                        absorb_genA_addr <= absorb_genA_addr + 32'd8;
+                    end
+                    4'd4: begin
+                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[127:64] <= seed_A_buffer[63:0];
+                        absorb_genA_state <= 4'd5;
+                        absorb_num <= 8'd1;
+                        seg_absorb_num <= 8'd1;
+                        absorb_genA_addr <= absorb_genA_addr + 32'd8;
+                    end
+                    default: begin
+                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[127:64] <= seed_A_buffer[63:0];
+                        absorb_genA_state <= absorb_genA_state + 4'd1;
+                        absorb_num <= 8'd1;
+                        absorb_genA_addr <= absorb_genA_addr + 32'd8;
+                    end
+                endcase
+            end
+
+            if(absorb_genA_active && (sha3_wait_cmd || sha3_ready_rise)) begin
+                absorb_genA_active <= 1'b0;
+                absorb_genA_state <= 4'd0;
+            end
+
+            if(genA_loop_active) begin
+                case(genA_loop_state)
+                    GENA_IDLE: begin
+                        genA_loop_state <= GENA_ROW_PREP;
+                    end
+                    GENA_ROW_PREP: begin
+                        row_index_reg <= genA_work_row_index;
+                        block_num <= 4'd2;
+                        MATRIX_sign <= 1'b1;
+                        absorb_genA_active <= 1'b1;
+                        absorb_genA_state <= 4'd1;
+                        sha3_start <= 1'b1;
+                        genA_row_words <= genA_row_len_flag ? 9'd244 : 9'd336;
+                        case(genA_row_idx)
+                            2'd0:
+                                genA_curr_addr <= 15'd0;
+                            2'd1:
+                                genA_curr_addr <= {3'd0, genA_row_stride};
+                            2'd2:
+                                genA_curr_addr <= {2'd0, genA_row_stride, 1'b0};
+                            default:
+                                genA_curr_addr <= {3'd0, genA_row_stride} + {2'd0, genA_row_stride, 1'b0};
+                        endcase
+                        genA_word_idx <= 9'd0;
+                        genA_sample_offset <= 5'd0;
+                        genA_loop_state <= GENA_WAIT_ABSORB;
+                    end
+                    GENA_WAIT_ABSORB: begin
+                        if(sha3_ready_rise) begin
+                            sample_mode <= 2'd1;
+                            genA_loop_state <= GENA_SAMPLE_REQ;
+                        end
+                    end
+                    GENA_SAMPLE_REQ: begin
+                        dump_BASE_addr <= genA_curr_addr;
+                        sha3_sample_addr <= genA_sample_offset;
+                        sampling_wen <= 1'b1;
+                        genA_loop_state <= GENA_SAMPLE_DONE;
+                    end
+                    GENA_SAMPLE_DONE: begin
+                        if(genA_word_idx + 9'd1 >= genA_row_words) begin
+                            if(genA_row_idx == 2'd3) begin
+                                genA_loop_active <= 1'b0;
+                                genA_loop_state <= GENA_IDLE;
+                                genA_loop_done_pulse <= 1'b1;
+                            end
+                            else begin
+                                genA_row_idx <= genA_row_idx + 2'd1;
+                                genA_work_row_index <= genA_work_row_index + 16'd1;
+                                genA_loop_state <= GENA_ROW_PREP;
+                            end
+                        end
+                        else begin
+                            genA_word_idx <= genA_word_idx + 9'd1;
+                            genA_curr_addr <= genA_curr_addr + 15'd8;
+                            if(genA_sample_offset == 5'd20) begin
+                                genA_sample_offset <= 5'd0;
+                                genA_loop_state <= GENA_ISSUE_SQ;
+                            end
+                            else begin
+                                genA_sample_offset <= genA_sample_offset + 5'd1;
+                                genA_loop_state <= GENA_SAMPLE_REQ;
+                            end
+                        end
+                    end
+                    GENA_ISSUE_SQ: begin
+                        sha3_squeezeonce <= 1'b1;
+                        genA_loop_state <= GENA_WAIT_SQ;
+                    end
+                    GENA_WAIT_SQ: begin
+                        if(sha3_ready_rise) begin
+                            genA_loop_state <= GENA_SAMPLE_REQ;
+                        end
+                    end
+                    default: begin
+                        genA_loop_state <= GENA_IDLE;
+                    end
+                endcase
+            end
 
             if(sha3_start)
                 sha3_start <= 1'b0;
