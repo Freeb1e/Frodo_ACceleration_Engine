@@ -178,14 +178,14 @@ void global_meminit(){
     }
 
 
-    // test_file = "./simdata/raminit/Bout.bin";
-    // if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
-    // {
-    //     printf("Loaded S data into HASH RAM successfully.\n");
-    // }
-    // else
-    // {
-    //     printf("Failed to load S data into HASH RAM.\n");
-    // }
+    test_file = "./simdata/raminit/Bout.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
     //pmem_write(4, 0, 0xACBDABCD, 0xFF); 
 }
