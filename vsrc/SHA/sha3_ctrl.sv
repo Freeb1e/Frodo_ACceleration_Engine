@@ -63,7 +63,10 @@ module sha3_ctrl(
     assign addr_sample = {1'b1,sha3_sample_addr , 1'b0};
     assign addr_keccak = (current_state == ABSORB)? addr_keccak_absorb_delay : addr_sample;
     assign sha3_addr_perip = (current_state == ABSORB)? addr_seed : addr_output;
-    assign sha3_data_out = dout_keccak;
+    // 插入流水寄存器，切断 sha3 25:1 MUX → BRAM路由 的长组合路径
+    always_ff @(posedge clk) begin
+        sha3_data_out <= dout_keccak;
+    end
     assign squeeze_oncedone = ready_keccak && (!next_keccak_squeeze);
     always_ff@(posedge clk or negedge rst_n) begin
         if(!rst_n) begin

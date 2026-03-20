@@ -144,6 +144,11 @@ module FACE_TOP(
     logic [3:0] block_num;
     logic MATRIX_sign;
 
+    // 流水对齐：sha3_data_out 已在 sha3_ctrl 中插入 1 拍寄存器，
+    // 写使能和地址也需延迟 1 拍以保持对齐
+    logic        sampling_wen_d;
+    logic [31:0] dump_addr_d;
+
     logic genA_loop_active;
     logic genA_loop_done_pulse;
     logic [2:0] genA_loop_state;
@@ -373,18 +378,18 @@ module FACE_TOP(
                 // genA 特殊处理：写到当前未被 systolic 占用的 HASH buffer
                 bram_wdata_HASH = final_sha3_data_out;
                 if (hash_buffer_sel == 1'b0) begin
-                    addr_HASH_2 = dump_addr;
-                    wen_HASH_2 = sampling_wen;
+                    addr_HASH_2 = dump_addr_d;
+                    wen_HASH_2 = sampling_wen_d;
                 end
                 else begin
-                    addr_HASH_1 = dump_addr;
-                    wen_HASH_1 = sampling_wen;
+                    addr_HASH_1 = dump_addr_d;
+                    wen_HASH_1 = sampling_wen_d;
                 end
             end
             else if (dumpram_id == 1'b0) begin
                 // 其他指令（genSE 等）维持原有 RAM 路由
-                addr_sp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
-                wen_sp_2 = sampling_wen;
+                addr_sp_2 = (sample_mode != 2'd0) ? dump_addr_d : (dump_addr_d + sha3_addr_perip);
+                wen_sp_2 = sampling_wen_d;
 
                 if (sample_mode == 2'd2 && !is_e_matrix_reg) begin
                     bram_wdata_sp_2 = (addr_sp_2[2] == 1'b0) ?
@@ -397,8 +402,8 @@ module FACE_TOP(
                 end
             end
             else begin
-                addr_dp_2 = (sample_mode != 2'd0) ? dump_addr : (dump_addr + sha3_addr_perip);
-                wen_dp_2 = sampling_wen;
+                addr_dp_2 = (sample_mode != 2'd0) ? dump_addr_d : (dump_addr_d + sha3_addr_perip);
+                wen_dp_2 = sampling_wen_d;
 
                 if (sample_mode == 2'd2 && !is_e_matrix_reg) begin
                     bram_wdata_dp_2 = (addr_dp_2[2] == 1'b0) ?
@@ -424,6 +429,17 @@ module FACE_TOP(
         end
         else begin
             sha3_ready_d <= sha3_ready;
+        end
+    end
+
+    // 流水对齐寄存器：匹配 sha3_data_out 的 1 拍延迟
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sampling_wen_d <= 1'b0;
+            dump_addr_d    <= 32'd0;
+        end else begin
+            sampling_wen_d <= sampling_wen;
+            dump_addr_d    <= dump_addr;
         end
     end
 
@@ -787,7 +803,7 @@ module FACE_TOP(
                 systolic_busy <= prebusy[1];
             end
 
-            if (((sha3_ready_rise && OPCODE != `SHAOPCODE && !sha3_squeezeonce) ||sampling_wen || sha3_wait_cmd) && !genA_loop_active) begin
+            if (((sha3_ready_rise && OPCODE != `SHAOPCODE && !sha3_squeezeonce) ||sampling_wen_d || sha3_wait_cmd) && !genA_loop_active) begin
                 sha3busy <= 1'b0;
             end
             else if (genA_loop_done_pulse) begin
