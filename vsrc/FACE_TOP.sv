@@ -575,6 +575,7 @@ module FACE_TOP(
                     `SHAKE_dumpaword_FUNC: begin
                         sampling_wen <= 1'b1;
                         dump_BASE_addr <= instr[24:10];
+                        dumpram_id <= instr[30];
                         sample_mode <= 2'd0;
                         sha3_sample_addr <= instr[29:25];
                     end

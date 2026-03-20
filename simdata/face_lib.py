@@ -81,8 +81,17 @@ class FaceLib:
         """
         self._emit(f"SHAKE_gen_SE {mode}, {offset}, {bram_id}, {esign}, {hex(word_addr)}")
 
-    def shake_dumpaword(self, offset, start_addr):
-        self._emit(f"SHAKE_dumpaword {offset}, {hex(start_addr)}")
+    def shake_dumpaword(self, offset, start_addr, dumpram_id=0):
+        """
+        将 SHAKE 状态中指定 64-bit word 写回 RAM。
+        :param offset: 状态字偏移 (0-24)
+        :param start_addr: 目标起始地址
+        :param dumpram_id: 目标 RAM (0: SP_RAM, 1: DP_RAM)，默认 0
+        """
+        if dumpram_id == 0:
+            self._emit(f"SHAKE_dumpaword {offset}, {hex(start_addr)}")
+        else:
+            self._emit(f"SHAKE_dumpaword {offset}, {hex(start_addr)}, {dumpram_id}")
 
     def shake_absorb_genA(self, matrix_sign, block_num, row_index, pad_sel=0):
         """

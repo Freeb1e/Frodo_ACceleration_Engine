@@ -27,7 +27,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | SHAKE_absorb      |                   `[22:18]last_block_words` `[17:10]seg_absorb_num` `[9:7]FUNC` `[6:0]OPCODE` | 3    |
 | SHAKE_gen_A       |          `[31:30]mode` `[29]row_len_flag` `[28:26]reserved` `[25:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 4    |
 | SHAKE_gen_SE      | `[31:30]mode` `[29:25]offset` `[24]bram_id` `[23]esign` `[22:10]word_addr` `[9:7]FUNC` `[6:0]OPCODE` | 5 |
-| SHAKE_dumpaword    |                               `[29:25]offset` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 6    |
+| SHAKE_dumpaword    |              `[30]dumpram_id` `[29:25]offset` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 6    |
 | SHAKE_absorb_genA | `[31]matrix_sign` `[30]pad_sel` `[29:26]block_num` `[25:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 7    |
 
 ### 指令详细解释
@@ -44,7 +44,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | **SHAKE_absorb**      | **分段吸收指令**。在已配置的种子地址基础上继续吸收后续段。 | **last_block_words**: 完整块之后额外读取的 64-bit 字数；**seg_absorb_num**: 本段吸收的完整块数。                            |
 | **SHAKE_gen_A**       | A矩阵采样硬件循环：一次指令自动生成连续4行并写入 HASH 乒乓缓存区。           | **mode**: 标准 (0:640, 1:976, 2:1344)；**row_len_flag**: 行长度选择 (0:1344, 1:976)；**row_index**: 起始行号（内部自动生成4行）；写入地址固定从 0 开始。               |
 | **SHAKE_gen_SE**      | 从 SHAKE 状态提取数据经采样写入内存。                       | **mode**: 标准 (0:640, 1:976, 2:1344)；**offset**: 字偏移 (0-24)；**bram_id**: 目标 BRAM；**esign**: 标志位 (0:S, 1:E)；**word_addr**: 内存字地址。 |
-| **SHAKE_dumpaword**   | 将当前 SHAKE 状态块中指定的 64-bit 字转储到内存。           | **offset**: 字偏移 (0-24)；**start_addr**: 写入内存的起始偏移地址。                                                         |
+| **SHAKE_dumpaword**   | 将当前 SHAKE 状态块中指定的 64-bit 字转储到内存。           | **dumpram_id**: 目标 RAM (0:SP, 1:DP，默认0)；**offset**: 字偏移 (0-24)；**start_addr**: 写入内存的起始偏移地址。                                                         |
 | **SHAKE_absorb_genA** | 用于生成矩阵 A 或 SE 的特定行处理指令。                     | **matrix_sign**: 矩阵类型 (0:A, 1:SE)；**pad_sel**: A路径末字节补位选择 (0:`8'h5F`, 1:`8'h96`)；**block_num**: 块编号；**row_index**: 当前处理的行索引。                             |
 
 ### 汇编指令格式说明
@@ -63,7 +63,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | `SHAKE_absorb 5, 2`                    | `last_block_words`, `seg_absorb_num`               |
 | `SHAKE_gen_A 0, 0, 0x0`                | `mode`, `row_len_flag`, `row_index`                     |
 | `SHAKE_gen_SE 2, 0, 0, 0, 0x3000`      | `mode`, `offset`, `bram_id`, `esign`, `word_addr`  |
-| `SHAKE_dumpaword 0, 0x0`               | `offset`, `start_addr`                             |
+| `SHAKE_dumpaword 0, 0x0[, 1]`          | `offset`, `start_addr`, `dumpram_id`(可选, 缺省=0/SP)                             |
 | `SHAKE_absorb_genA 0, 8, 0x1234, 1`    | `matrix_sign`, `block_num`, `row_index`, `pad_sel` |
 | `NOP`                                  | (空指令，生成 `0xAB000000`)                        |
 

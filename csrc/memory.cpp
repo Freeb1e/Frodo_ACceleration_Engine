@@ -323,6 +323,8 @@ void frodo_v_encodeu_add() {
         return;
     }
 
+    uint8_t c_le[V_BYTES];
+
     for (uint32_t i = 0; i < COEFFS; ++i) {
         const uint8_t packed = sp_ram[U_BASE_ADDR + (i >> 1)];
         const uint16_t mu_i = (i & 1u) ? ((packed >> 4) & 0x0Fu) : (packed & 0x0Fu);
@@ -332,9 +334,15 @@ void frodo_v_encodeu_add() {
         const uint16_t v_i = (uint16_t)dp_ram[v_off] | ((uint16_t)dp_ram[v_off + 1] << 8);
         const uint16_t c_i = (uint16_t)(v_i + enc_i);
 
-        // 按 mul_top.outpack 规则存储：16-bit 高低字节交换后写入
-        const uint32_t c_off = C_BASE_ADDR + (i << 1);
-        dp_ram[c_off] = (uint8_t)(c_i >> 8);
-        dp_ram[c_off + 1] = (uint8_t)(c_i & 0xFFu);
+        const uint32_t c_off = (i << 1);
+        c_le[c_off] = (uint8_t)(c_i & 0xFFu);
+        c_le[c_off + 1] = (uint8_t)(c_i >> 8);
+    }
+
+    // 第二阶段统一 pack：逐 16-bit 交换高低字节后写回 DP_RAM。
+    for (uint32_t i = 0; i < COEFFS; ++i) {
+        const uint32_t off = (i << 1);
+        dp_ram[C_BASE_ADDR + off] = c_le[off + 1];
+        dp_ram[C_BASE_ADDR + off + 1] = c_le[off];
     }
 }

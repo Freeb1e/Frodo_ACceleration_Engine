@@ -101,13 +101,15 @@ def assemble_line(line):
             machine_code = (func << 7) | opcode
 
         elif inst == "SHAKE_dumpaword":
-            # 格式: SHAKE_dumpaword offset, start_addr
+            # 格式: SHAKE_dumpaword offset, start_addr[, dumpram_id]
+            # dumpram_id [30] 1 bit, 0=SP_RAM(默认), 1=DP_RAM
             # offset [29:25], start_addr [24:10]
+            dumpram_id = (args[2] & 0x1) if len(args) > 2 else 0
             offset     = args[0] & 0x1F   # [29:25] 5 bits
             start_addr = args[1] & 0x7FFF # [24:10] 15 bits
             func       = 6 & 0x7          # [9:7] FUNC = 6
             opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (offset << 25) | (start_addr << 10) | (func << 7) | opcode
+            machine_code = (dumpram_id << 30) | (offset << 25) | (start_addr << 10) | (func << 7) | opcode
 
 
         elif inst == "SHAKE_gen_A":

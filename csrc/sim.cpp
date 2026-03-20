@@ -110,6 +110,7 @@ void interactive_memory_query() {
 
 void Keygen_init();
 void Encap_init();
+void Encapss_init();
 int main(int argc, char** argv, char** env) {
     dut = new VTEST_PLATFORM;
 
@@ -124,7 +125,8 @@ int main(int argc, char** argv, char** env) {
     tick();
     dut -> rst_n = 1;
     Keygen_init();
-   //Encap_init();
+    //Encap_init();
+    //Encapss_init();
     //init_SA_test();
     //init_AS_test();
     //init_seedram(0); // 初始化种子数据到 SP_RAM
@@ -196,4 +198,26 @@ void Encap_init(){
     for (int i = 0; i < 12; i++) {
         pmem_write((4036*8 + i*8), 0, 0x4242424242424242, 0xFF);
     }
+}
+
+void Encapss_init(){
+    test_file = "./simdata/raminit/SP_RAM_encap.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
+    test_file = "./simdata/raminit/DP_RAM_encap.bin";
+    if(load_bin_to_ram(test_file, dp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
+
 }

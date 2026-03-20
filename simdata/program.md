@@ -217,28 +217,25 @@ def generate_keygen():
     face.frodo_v_encodeu_add()
 
     # ss = SHAKE256(Pack(B') || Pack(C) || salt || k)
-    # B' : 21504 bytes @ 10752
-    # C  :   128 bytes @ 32256
+    # B' : 21504 bytes @ dp[10752]
+    # C  :   128 bytes @ dp[32256]，与 B' 连续
     # salt:   64 bytes @ 4040*8
     # k   :   32 bytes @ 4056*8
     # total: 21728 bytes = 160 blocks * 136, last_block_bytes = 104
-    face.shake_seedaddrset(1, 10752)
+    face.shake_seedaddrset(1, 10752, 1)
     face.shake_seedset(104, 160)
 
-    # segment-1: Pack(B') = 158 full blocks + 16 bytes
-    face.shake_absorb(2, 158)
+    # segment-1: Pack(B') || Pack(C) 连续于 dp_ram
+    # 21632 bytes = 159 full blocks + 8 bytes
+    face.shake_absorb(1, 159)
 
-    # segment-2: Pack(C) = 128 bytes
-    face.shake_seedaddrset(1, 32256)
-    face.shake_absorb(16, 0)
+    # segment-2: salt = 64 bytes (sp_ram)
+    face.shake_seedaddrset(1, 4040 * 8, 0)
+    face.shake_absorb(9, 0)
 
-    # segment-3: salt = 64 bytes
-    face.shake_seedaddrset(1, 4040 * 8)
-    face.shake_absorb(8, 0)
-
-    # segment-4: k = 32 bytes
-    face.shake_seedaddrset(1, 4056 * 8)
-    face.shake_absorb(4, 0)
+    # segment-3: k = 32 bytes (sp_ram)
+    face.shake_seedaddrset(1, 4056 * 8, 0)
+    face.shake_absorb(0, 1)
 
     # dump ss (256-bit)
     for i in range(4):

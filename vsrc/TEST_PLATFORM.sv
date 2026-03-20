@@ -73,7 +73,11 @@ module TEST_PLATFORM(
     assign pre_systolicbusy = (OPCODE_D == `SYSOPCODE)&&(FUNC_D == `systolic_calc_FUNC);
     assign pre_sha3busy = (OPCODE_D == `SHAOPCODE)&&(FUNC_D != `SHAKE_seedaddrset_FUNC)&&(FUNC_D  != `SHAKE_seedset_FUNC); //SHAKE的seed设置指令不占用sha3核心
     assign prebusy = {pre_systolicbusy,pre_sha3busy};
-    assign instr_bitbusy = {(OPCODE_D == `SYSOPCODE),(OPCODE_D == `SHAOPCODE)};
+    // TESTOPCODE (如 frodo_v_encodeu_add) 也必须等待计算资源空闲，
+    // 否则会与尚未完成的 systolic/sha 写回发生覆盖竞争。
+    assign instr_bitbusy = (OPCODE_D == `TESTOPCODE)
+                         ? 2'b11
+                         : {(OPCODE_D == `SYSOPCODE),(OPCODE_D == `SHAOPCODE)};
     //assign ready =!(|(instr_bitbusy & bitbusy));
     assign ready =!(|instr_bitbusy & |bitbusy);
     always_ff@(posedge clk or negedge rst_n) begin
