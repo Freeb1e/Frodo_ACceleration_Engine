@@ -57,6 +57,7 @@ module mul_top(
                   .delay_switch 	(1'b1  ),
                   .dout         	(data_right_unpacked_d4          )
               );
+    logic [63:0] data_right_half_d4;
     logic transposition_slect;
 
     logic [4*16-1:0] martix_out_transposition_1,martix_out_transposition_2;
@@ -115,11 +116,13 @@ module mul_top(
     assign transposition_mode_2 = transposition_slect ? 1'b0 : 1'b1;
 
     logic sb_mode_as_path;
+    logic bs_mode_as_path;
     logic [63:0] data_left_processed;
     logic [63:0] data_right_matrix;
     logic [63:0] data_right_processed;
     logic [63:0] half_select_source;
     assign sb_mode_as_path = (ctrl_mode == SB) && ((current_state == AS_CALC) || (current_state == AS_SAVE));
+    assign bs_mode_as_path = (ctrl_mode == BS) && ((current_state == AS_CALC) || (current_state == AS_SAVE));
     assign half_select_source = sb_mode_as_path ? data_left_unpacked : data_right_unpacked;
     assign data_left_processed = sb_mode_as_path ? HALF_SLECT_DATA : data_left_unpacked;
 
@@ -163,6 +166,16 @@ module mul_top(
                {8{half_select_source[47]}}, half_select_source[47:40],  // Byte 5 -> [31:16]
                {8{half_select_source[39]}}, half_select_source[39:32]   // Byte 4 -> [15:0]
            };
+    delay_reg #(
+                  .DATA_WIDTH   	(64  ),
+                  .DELAY_CYCLES 	(4   ))
+              u_delay_reg_data_right_half_bs(
+                  .clk          	(clk           ),
+                  .rst_n        	(rst_n         ),
+                  .din          	(HALF_SLECT_DATA          ),
+                  .delay_switch 	(1'b1  ),
+                  .dout         	(data_right_half_d4          )
+              );
     logic delayaddr5;
     logic set_addr;
     delay_reg #(
@@ -239,6 +252,9 @@ module mul_top(
                 a_in_raw = transposition_slect ? martix_out_transposition_1 : martix_out_transposition_2 ;
                 if (sb_mode_as_path) begin
                     b_in_raw = data_right_unpacked_d4;
+                end
+                else if (bs_mode_as_path) begin
+                    b_in_raw = data_right_half_d4;
                 end
                 else begin
                     b_in_raw = transposition_slect ? martix_out_transposition_3 : martix_out_transposition_4 ;

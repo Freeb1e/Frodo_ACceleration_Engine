@@ -194,6 +194,12 @@ module mem_ctrl(
                     // k = cnt_line*4 + count_4, read one 64-bit chunk => columns [0..3] (or [4..7] via BASE_ADDR_RIGHT offset)
                     bram_addr_2 = BASE_ADDR_RIGHT_REG + cnt_line*32'd64 + count_4*32'd16;
                 end
+                else if (ctrl_mode == BS) begin
+                    // BS: left operand is B' (16-bit), right operand is S (8-bit packed)
+                    // left read follows refB row-major stream, right read follows packed-S stream
+                    bram_addr_1 = BASE_ADDR_LEFT_REG + cnt_line*32'd64 + count_4*32'd16;
+                    bram_addr_2 = BASE_ADDR_RIGHT_REG + cnt_line*32'd4 + count_4*Frodo_standard_SE;
+                end
                 else begin
                     bram_addr_1 = BASE_ADDR_LEFT_REG + cnt_line*32'd8 + count_4*Frodo_standard_A;
                     bram_addr_2 = BASE_ADDR_RIGHT_REG + cnt_line*32'd4 + count_4*Frodo_standard_SE;
