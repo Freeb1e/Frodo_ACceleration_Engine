@@ -6,6 +6,7 @@ module mul_top(
         input logic [2:0] mem_mode,//0:idle 1:AS 2:SA 3:SB 4:BS
         input logic calc_init,
         input logic inpack,   // 读取时对16bit元素高低字节交换(unpack)
+        input logic inpack_right, // 读取时对右矩阵数据进行16bit元素高低字节交换(unpack)
         input logic outpack,  // 输出时对16bit元素高低字节交换(pack)
 
         input logic [63:0] bram_data_1,
@@ -33,12 +34,18 @@ module mul_top(
     // inpack: 对读取的左矩阵数据进行16bit元素高低字节交换
     logic [63:0] data_left_unpacked;
     assign data_left_unpacked = inpack ? {
-        data_left[55:48], data_left[63:56],  // element 3: swap bytes
-        data_left[39:32], data_left[47:40],  // element 2: swap bytes
-        data_left[23:16], data_left[31:24],  // element 1: swap bytes
-        data_left[7:0],   data_left[15:8]    // element 0: swap bytes
+        data_left[55:48], data_left[63:56], 
+        data_left[39:32], data_left[47:40], 
+        data_left[23:16], data_left[31:24], 
+        data_left[7:0],   data_left[15:8]   
     } : data_left;
-
+    logic [63:0] data_right_unpacked;
+    assign data_right_unpacked = inpack_right ? {
+               data_right[55:48], data_right[63:56],
+               data_right[39:32], data_right[47:40],
+               data_right[23:16], data_right[31:24],
+               data_right[7:0],   data_right[15:8]
+           } : data_right;
     logic transposition_slect;
 
     logic [4*16-1:0] martix_out_transposition_1,martix_out_transposition_2;
@@ -47,8 +54,6 @@ module mul_top(
     logic [4*16-1:0] martix_out_transposition_3,martix_out_transposition_4;
     logic transposition_mode_3,transposition_mode_4;
 
-    // parameter FREE=4'd0,AS_SQUARE=4'd1,AS_SAVE=4'd2,AS_WAITHASH=4'd3,SA_loadweight1=4'd4,SA_loadweight2=4'd5,SA_calculate1=4'd6,SA_calculate2=4'd7,SA_WAITHASH=4'd8;
-    // parameter DEBUG=4'd15;
     parameter IDLE=4'd0;
     parameter AS_CALC=4'd1,AS_SAVE=4'd2;
     parameter SA_LOADWEIGHT=4'd3,SA_CALC=4'd4;
@@ -123,17 +128,19 @@ module mul_top(
                                   .rst_sync (transposition_rst_sync)
                               );
     //右矩阵转置器
+
+
     logic [63:0] HALF_SLECT_DATA;
     assign HALF_SLECT_DATA = (~delayaddr5) ? {
-               {8{data_right[31]}}, data_right[31:24],  // Byte 3 -> [63:48]
-               {8{data_right[23]}}, data_right[23:16],  // Byte 2 -> [47:32]
-               {8{data_right[15]}}, data_right[15:8],   // Byte 1 -> [31:16]
-               {8{data_right[7]}}, data_right[7:0]     // Byte 0 -> [15:0]
+               {8{data_right_unpacked[31]}}, data_right_unpacked[31:24],  // Byte 3 -> [63:48]
+               {8{data_right_unpacked[23]}}, data_right_unpacked[23:16],  // Byte 2 -> [47:32]
+               {8{data_right_unpacked[15]}}, data_right_unpacked[15:8],   // Byte 1 -> [31:16]
+               {8{data_right_unpacked[7]}}, data_right_unpacked[7:0]     // Byte 0 -> [15:0]
            }: {
-               {8{data_right[63]}}, data_right[63:56],  // Byte 7 -> [63:48]
-               {8{data_right[55]}}, data_right[55:48],  // Byte 6 -> [47:32]
-               {8{data_right[47]}}, data_right[47:40],  // Byte 5 -> [31:16]
-               {8{data_right[39]}}, data_right[39:32]   // Byte 4 -> [15:0]
+               {8{data_right_unpacked[63]}}, data_right_unpacked[63:56],  // Byte 7 -> [63:48]
+               {8{data_right_unpacked[55]}}, data_right_unpacked[55:48],  // Byte 6 -> [47:32]
+               {8{data_right_unpacked[47]}}, data_right_unpacked[47:40],  // Byte 5 -> [31:16]
+               {8{data_right_unpacked[39]}}, data_right_unpacked[39:32]   // Byte 4 -> [15:0]
            };
     logic delayaddr5;
     logic set_addr;

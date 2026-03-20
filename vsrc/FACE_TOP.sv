@@ -95,6 +95,7 @@ module FACE_TOP(
     logic [31:0] BASE_ADDR_SAVE;
     logic [1:0] ctrl_mode_REG;
     logic inpack_REG;
+    logic inpack_right_REG;
     logic outpack_REG;
     logic [2:0] mem_mode;
 
@@ -194,6 +195,7 @@ module FACE_TOP(
         .mem_mode         (mem_mode),
         .calc_init        (calc_init),
         .inpack           (inpack_REG),
+        .inpack_right     (inpack_right_REG),
         .outpack          (outpack_REG),
         .bram_data_1      (bram_data_1),
         .bram_data_2      (bram_data_2),
@@ -454,6 +456,7 @@ module FACE_TOP(
             calc_init <= 1'b0;
             ctrl_mode_REG <= 2'b00;
             inpack_REG <= 1'b0;
+            inpack_right_REG <= 1'b0;
             outpack_REG <= 1'b0;
             hash_buffer_sel <= 1'b0;
         end
@@ -472,6 +475,7 @@ module FACE_TOP(
                 if (!systolic_busy || 1'b1) begin
                     ctrl_mode_REG <= ctrl_mode;
                     inpack_REG <= instr[24];
+                    inpack_right_REG <= instr[25];
                     outpack_REG <= instr[23];
                     calc_init <= 1'b1;
                     MATRIX_SIZE <= instr[22:12];

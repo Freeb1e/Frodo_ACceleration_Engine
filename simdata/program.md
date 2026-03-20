@@ -3,27 +3,27 @@ systolic_addrset 0,0
 systolic_addrset 0,1
 systolic_addrset 10752,2
 systolic_addrset 10752,3
-systolic_calc 336,0
+systolic_calc 336,0,0,0,0
 
 systolic_addrset 0,0
 systolic_addrset 5376,1
 systolic_addrset 10760,2
 systolic_addrset 10760,3
-systolic_calc 336,0
+systolic_calc 336,0,0,0,0
 
 ## SAtest
 systolic_addrset 0,0
 systolic_addrset 0,1
 systolic_addrset 10752,2
 systolic_addrset 10752,3
-systolic_calc 336,3
+systolic_calc 336,3,0,0,0
 nop
 
 systolic_addrset 5376,0
 systolic_addrset 0,1
 systolic_addrset 21504,2
 systolic_addrset 21504,3
-systolic_calc 336,3
+systolic_calc 336,3,0,0,0
 nop
 
 ## shake base
@@ -98,13 +98,13 @@ def generate_keygen():
     face.systolic_addrset(0, 1)
     face.systolic_addrset(10752,2)
     face.systolic_addrset(10752,3)
-    face.systolic_calc(336, 0,0,1)
+    face.systolic_calc(336, 0, 0, 1, 0)
     
     face.systolic_addrset(0, 0)
     face.systolic_addrset(5376, 1)
     face.systolic_addrset(10760,2)
     face.systolic_addrset(10760,3)
-    face.systolic_calc(336, 0,0,1)
+    face.systolic_calc(336, 0, 0, 1, 0)
     face.shake_seedaddrset(0,32512)
     face.comment("GENA2")
     for block in range(1,336):
@@ -117,13 +117,13 @@ def generate_keygen():
         face.systolic_addrset(0, 1)
         face.systolic_addrset(10752 + 64 * block, 2)
         face.systolic_addrset(10752 + 64 * block, 3)
-        face.systolic_calc(336, 0,0,1)
+        face.systolic_calc(336, 0, 0, 1, 0)
         
         face.systolic_addrset(0, 0)
         face.systolic_addrset(5376, 1)
         face.systolic_addrset(10760 + 64 * block, 2)
         face.systolic_addrset(10760 + 64 * block, 3)
-        face.systolic_calc(336, 0,0,1)
+        face.systolic_calc(336, 0, 0, 1, 0)
 
     # 生成pkh = SHAKE256(seedA || Pack(B))
     # seedA: 16字节(2字) @ 32512, B: 21504字节(2688字) @ 10752

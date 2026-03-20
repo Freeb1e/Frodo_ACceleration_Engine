@@ -32,8 +32,11 @@ def generate_keygen():
     face.shake_gen_a(2, 0, linenum)
         
     block = 0
+    pack = 0
     for block in range (336):
             ##生成A矩阵的四行
+        if block ==335:
+            pack = 1
         face.shake_seedaddrset(0,32512)
         face.shake_gen_a(2, 0, block * 4)
         face.systolic_bufswap()
@@ -42,14 +45,19 @@ def generate_keygen():
         face.systolic_addrset(0, 1)
         face.systolic_addrset(10752, 2)
         face.systolic_addrset(10752, 3)
-        face.systolic_calc(336, 3 ,0 ,0)
+        face.systolic_calc(336, 3 ,0 ,pack ,0)
 
         face.systolic_addrset(5376 + block * 4, 0)
         face.systolic_addrset(0, 1)
         face.systolic_addrset(21504, 2)
         face.systolic_addrset(21504, 3)
-        face.systolic_calc(336, 3 ,0 ,0)
+        face.systolic_calc(336, 3 ,0 ,pack ,0)
     
+    face.systolic_addrset(0, 0)
+    face.systolic_addrset(10752, 1)
+    face.systolic_addrset(32256, 2)
+    face.systolic_addrset(32256, 3)
+    face.systolic_calc(336, 1 ,0 ,0 ,1)
     face.save("simdata/test.asm")
 
 if __name__ == "__main__":

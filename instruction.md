@@ -17,7 +17,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | function          |                                                                          instruction[31:0] | FUNC |
 | :---------------- | -----------------------------------------------------------------------------------------: | :--- |
 | systolic_addrset  |                               `[31:12]BASE_ADDR` `[11:10]SETTAR` `[9:7]FUNC` `[6:0]OPCODE` | 0    |
-| systolic_calc     |          `[24]inpack` `[23]outpack` `[22:12]MATRIX_SIZE` `[11:10]ctrl_mode` `[9:7]FUNC` `[6:0]OPCODE` | 1    |
+| systolic_calc     | `[25]inpack_right` `[24]inpack` `[23]outpack` `[22:12]MATRIX_SIZE` `[11:10]ctrl_mode` `[9:7]FUNC` `[6:0]OPCODE` | 1    |
 | systolic_bufswap  |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
 | SHAKE_seedaddrset |                             `[25]shakemode` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 0    |
 | SHAKE_seedset     |                   `[25:18]last_block_bytes` `[17:10]absorb_num`  `[9:7]FUNC` `[6:0]OPCODE` | 1    |
@@ -32,7 +32,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | 指令名称              | 功能描述                                                    | 参数说明                                                                                                                    |
 | :-------------------- | :---------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
 | **systolic_addrset**  | 设置脉动阵列访问内存的基地址寄存器。                        | **BASE_ADDR**: 20位基地址；**SETTAR**: 目标寄存器 (0:LEFT, 1:RIGHT, 2:ADDSRC, 3:SAVE)。                                     |
-| **systolic_calc**     | 启动脉动阵列矩阵乘加运算。                                  | **inpack**: 读取时字节交换 (1:启用pack纠正)；**outpack**: 输出时字节交换 (1:启用pack)；**MATRIX_SIZE**: 矩阵维度/计算长度；**ctrl_mode**: 计算阶段模式 (00:AS, 01:S'B, 10:B'S, 11:S'A)。 |
+| **systolic_calc**     | 启动脉动阵列矩阵乘加运算。                                  | **inpack_right**: 右输入读取时字节交换；**inpack**: 左输入读取时字节交换；**outpack**: 输出时字节交换；**MATRIX_SIZE**: 矩阵维度/计算长度；**ctrl_mode**: 计算阶段模式 (00:AS, 01:S'B, 10:B'S, 11:S'A)。 |
 | **systolic_bufswap**  | **乒乓缓存切换**。交换 HASH Buffer 1 和 2 的计算/生成角色。 | 无额外参数。执行后翻转内部 `hash_buffer_sel` 信号。                                                                         |
 | **SHAKE_seedaddrset** | 设置 SHAKE 算法吸收入库数据的起始地址和模式。               | **shakemode**: 0 为 SHAKE128, 1 为 SHAKE256；**start_addr**: 种子在内存中的起始地址。                                       |
 | **SHAKE_seedset**     | 设置吸收参数并启动 SHAKE Absorb 过程。                      | **absorb_num**: 总吸收的块数；**last_block_bytes**: 最后一个块的有效字节数。                                                |
@@ -49,7 +49,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | 汇编指令示例                           | 操作数顺序与意义                                   |
 | :------------------------------------- | :------------------------------------------------- |
 | `systolic_addrset 0x1000, 0`           | `BASE_ADDR`, `SETTAR`                              |
-| `systolic_calc 64, 0, 1, 0`              | `MATRIX_SIZE`, `ctrl_mode`, `inpack`, `outpack`    |
+| `systolic_calc 64, 0, 1, 0, 1`              | `MATRIX_SIZE`, `ctrl_mode`, `inpack`, `outpack`, `inpack_right`    |
 | `systolic_bufswap`                     | (无操作数，触发 HASH Buffer 角色翻转)              |
 | `SHAKE_seedaddrset 1, 0x2000`          | `shakemode` (0:128, 1:256), `start_addr`           |
 | `SHAKE_seedset 136, 1`                 | `last_block_bytes`, `absorb_num`                   |
