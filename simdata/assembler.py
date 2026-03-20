@@ -5,6 +5,7 @@ import sys
 # ==========================================
 OPCODE_SYSTOLIC = 0b1010101  # Systolic 阵列指令的 opcode
 OPCODE_SHAKE    = 0b1010100  # SHAKE 模块指令的 opcode
+OPCODE_TEST     = 0b1010110  # 仿真/调试 DPIC 指令 opcode
 
 # ==========================================
 # 2. 核心解析与拼接逻辑
@@ -81,6 +82,20 @@ def assemble_line(line):
             # 格式: systolic_bufswap (无操作数)
             func       = 2 & 0x7          # [9:7] FUNC = 2
             opcode     = OPCODE_SYSTOLIC & 0x7F
+            machine_code = (func << 7) | opcode
+
+        elif inst == "frodo_v_encodeu_add":
+            # 格式: frodo_v_encodeu_add (无操作数)
+            # 仿真专用：触发 DPI-C 在 C 侧执行 V + encode(u)
+            func       = 0 & 0x7          # [9:7] FUNC = 0
+            opcode     = OPCODE_TEST & 0x7F
+            machine_code = (func << 7) | opcode
+
+        elif inst == "test_print_simtime":
+            # 格式: test_print_simtime (无操作数)
+            # 仿真专用：触发 DPI-C 打印当前 sim_time
+            func       = 1 & 0x7          # [9:7] FUNC = 1
+            opcode     = OPCODE_TEST & 0x7F
             machine_code = (func << 7) | opcode
 
         elif inst == "SHAKE_dumpaword":

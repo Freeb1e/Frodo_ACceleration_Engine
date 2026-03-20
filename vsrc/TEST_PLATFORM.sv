@@ -109,6 +109,12 @@ assign instr_F = (ready_d)? (pc_choose_delay == 1'b0) ? instr64[31:0] : instr64[
         end
     end
 `ifdef SIMULATION
+    TEST_DPIC u_TEST_DPIC(
+        .clk  (clk),
+        .rst_n(rst_n),
+        .instr(instr_E)
+    );
+
     // block RAM instances
     block_ram_dpi #(
                       .BRAM_ID 	(0  ))

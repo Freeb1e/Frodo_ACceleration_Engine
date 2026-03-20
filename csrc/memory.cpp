@@ -87,6 +87,8 @@ void pmem_write(int waddr, int bramid, long long wdata, char wmask) {
     }
 }
 
+
+
 } // extern "C"
 
 bool load_bin_to_ram(const char* filename, uint8_t* ram_ptr, uint32_t max_size, uint32_t offset) {
@@ -298,4 +300,41 @@ bool load_bin_to_ram_protect(const char* filename, uint8_t* ram_ptr, uint32_t ma
     }
     
     return true;
+}
+
+void frodo_v_encodeu_add() {
+    // 固定映射：V(c2) 位于 dp_ram[4032*8], u 位于 sp_ram[4036*8]
+    const uint32_t V_BASE_ADDR = 4032u * 8u;
+    const uint32_t U_BASE_ADDR = 4036u * 8u;
+    const uint32_t C_BASE_ADDR = 4032u * 8u; // 原地写回 c2
+
+    const uint32_t NBAR = 8u;
+    const uint32_t EXTRACTED_BITS = 4u; // Frodo1344: B=4
+    const uint32_t LOGQ = 16u;          // q = 2^16
+
+    const uint32_t COEFFS = NBAR * NBAR;             // 64
+    const uint32_t U_BYTES = (COEFFS * EXTRACTED_BITS) / 8u; // 32
+    const uint32_t V_BYTES = COEFFS * 2u;            // 128
+
+    if ((U_BASE_ADDR + U_BYTES > RAM_SIZE) ||
+        (V_BASE_ADDR + V_BYTES > RAM_SIZE) ||
+        (C_BASE_ADDR + V_BYTES > RAM_SIZE)) {
+        MEM_ERR_PRINTF("[DPI Error] frodo_v_encodeu_add out of bounds\n");
+        return;
+    }
+
+    for (uint32_t i = 0; i < COEFFS; ++i) {
+        const uint8_t packed = sp_ram[U_BASE_ADDR + (i >> 1)];
+        const uint16_t mu_i = (i & 1u) ? ((packed >> 4) & 0x0Fu) : (packed & 0x0Fu);
+        const uint16_t enc_i = (uint16_t)(mu_i << (LOGQ - EXTRACTED_BITS));
+
+        const uint32_t v_off = V_BASE_ADDR + (i << 1);
+        const uint16_t v_i = (uint16_t)dp_ram[v_off] | ((uint16_t)dp_ram[v_off + 1] << 8);
+        const uint16_t c_i = (uint16_t)(v_i + enc_i);
+
+        // 按 mul_top.outpack 规则存储：16-bit 高低字节交换后写入
+        const uint32_t c_off = C_BASE_ADDR + (i << 1);
+        dp_ram[c_off] = (uint8_t)(c_i >> 8);
+        dp_ram[c_off + 1] = (uint8_t)(c_i & 0xFFu);
+    }
 }

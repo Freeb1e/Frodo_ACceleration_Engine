@@ -24,6 +24,14 @@ class FaceLib:
     def systolic_bufswap(self):
         self._emit("systolic_bufswap")
 
+    def frodo_v_encodeu_add(self):
+        """仿真专用：触发 DPI-C 在 C 侧执行 V + encode(u)"""
+        self._emit("frodo_v_encodeu_add")
+
+    def test_print_simtime(self):
+        """仿真专用：触发 DPI-C 打印当前 sim_time"""
+        self._emit("test_print_simtime")
+
     # ==========================================
     # 2. SHAKE (SHA-3) 模块指令
     # ==========================================

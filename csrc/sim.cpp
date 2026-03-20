@@ -15,6 +15,10 @@ bool trace_on = false; // 控制波形开关：true 开启，false 关闭
 VTEST_PLATFORM *dut = nullptr;
 VerilatedVcdC *m_trace = nullptr;
 
+extern "C" void test_print_simtime() {
+    std::cout << "[DPIC Debug] sim_time = " << sim_time << std::endl;
+}
+
 
 void tick()
 {

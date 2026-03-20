@@ -1,9 +1,12 @@
 `define SYSOPCODE 7'b1010101
 `define SHAOPCODE 7'b1010100
+`define TESTOPCODE 7'b1010110
 
 `define systolic_addrset_FUNC 3'b000
 `define systolic_calc_FUNC 3'b001
 `define systolic_bufswap_FUNC 3'd2
+`define TEST_frodo_v_encodeu_add_FUNC 3'd0
+`define TEST_print_simtime_FUNC 3'd1
 
 `define SHAKE_seedaddrset_FUNC 3'd0
 `define SHAKE_seedset_FUNC 3'd1

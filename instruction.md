@@ -19,6 +19,8 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | systolic_addrset  |                               `[31:12]BASE_ADDR` `[11:10]SETTAR` `[9:7]FUNC` `[6:0]OPCODE` | 0    |
 | systolic_calc     | `[25]inpack_right` `[24]inpack` `[23]outpack` `[22:12]MATRIX_SIZE` `[11:10]ctrl_mode` `[9:7]FUNC` `[6:0]OPCODE` | 1    |
 | systolic_bufswap  |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
+| frodo_v_encodeu_add |                                                         `[9:7]FUNC` `[6:0]TESTOPCODE` | 0    |
+| test_print_simtime |                                                         `[9:7]FUNC` `[6:0]TESTOPCODE` | 1    |
 | SHAKE_seedaddrset |                             `[25]shakemode` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 0    |
 | SHAKE_seedset     |                   `[25:18]last_block_bytes` `[17:10]absorb_num`  `[9:7]FUNC` `[6:0]OPCODE` | 1    |
 | SHAKE_squeezeonce |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
@@ -34,6 +36,8 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | **systolic_addrset**  | 设置脉动阵列访问内存的基地址寄存器。                        | **BASE_ADDR**: 20位基地址；**SETTAR**: 目标寄存器 (0:LEFT, 1:RIGHT, 2:ADDSRC, 3:SAVE)。                                     |
 | **systolic_calc**     | 启动脉动阵列矩阵乘加运算。                                  | **inpack_right**: 右输入读取时字节交换；**inpack**: 左输入读取时字节交换；**outpack**: 输出时字节交换；**MATRIX_SIZE**: 矩阵维度/计算长度；**ctrl_mode**: 计算阶段模式 (00:AS, 01:S'B, 10:B'S, 11:S'A)。 |
 | **systolic_bufswap**  | **乒乓缓存切换**。交换 HASH Buffer 1 和 2 的计算/生成角色。 | 无额外参数。执行后翻转内部 `hash_buffer_sel` 信号。                                                                         |
+| **frodo_v_encodeu_add** | 仿真专用，调用 DPI-C C函数执行 `V + encode(u)`。 | 无额外参数。使用独立 `TESTOPCODE`；C 函数内部按固定地址从 `sp_ram` 读取 `u`，从 `dp_ram` 读取 `V` 并原地写回。 |
+| **test_print_simtime** | 仿真专用，调用 DPI-C 打印当前 `sim_time`。 | 无额外参数。使用独立 `TESTOPCODE`；便于在固件流中打时间戳。 |
 | **SHAKE_seedaddrset** | 设置 SHAKE 算法吸收入库数据的起始地址和模式。               | **shakemode**: 0 为 SHAKE128, 1 为 SHAKE256；**start_addr**: 种子在内存中的起始地址。                                       |
 | **SHAKE_seedset**     | 设置吸收参数并启动 SHAKE Absorb 过程。                      | **absorb_num**: 总吸收的块数；**last_block_bytes**: 最后一个块的有效字节数。                                                |
 | **SHAKE_squeezeonce** | 执行一次 SHAKE Squeeze 操作，生成新的内部状态块。           | 无额外参数。                                                                                                                |
@@ -51,6 +55,8 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | `systolic_addrset 0x1000, 0`           | `BASE_ADDR`, `SETTAR`                              |
 | `systolic_calc 64, 0, 1, 0, 1`              | `MATRIX_SIZE`, `ctrl_mode`, `inpack`, `outpack`, `inpack_right`    |
 | `systolic_bufswap`                     | (无操作数，触发 HASH Buffer 角色翻转)              |
+| `frodo_v_encodeu_add`                  | (无操作数，触发 DPI-C 执行 `V + encode(u)`)         |
+| `test_print_simtime`                   | (无操作数，触发 DPI-C 打印当前 `sim_time`)         |
 | `SHAKE_seedaddrset 1, 0x2000`          | `shakemode` (0:128, 1:256), `start_addr`           |
 | `SHAKE_seedset 136, 1`                 | `last_block_bytes`, `absorb_num`                   |
 | `SHAKE_squeezeonce`                    | (无操作数)                                         |
@@ -65,10 +71,13 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 ```sv
 `define SYSOPCODE 7'b1010101
 `define SHAOPCODE 7'b1010100
+`define TESTOPCODE 7'b1010110
 
 `define systolic_addrset_FUNC 3'b000
 `define systolic_calc_FUNC 3'b001
 `define systolic_bufswap_FUNC 3'd2
+`define TEST_frodo_v_encodeu_add_FUNC 3'd0
+`define TEST_print_simtime_FUNC 3'd1
 
 `define SHAKE_seedaddrset_FUNC 3'd0
 `define SHAKE_seedset_FUNC 3'd1
