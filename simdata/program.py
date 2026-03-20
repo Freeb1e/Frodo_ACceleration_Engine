@@ -53,11 +53,18 @@ def generate_keygen():
         face.systolic_addrset(21504, 3)
         face.systolic_calc(336, 3 ,0 ,pack ,0)
     
-    face.systolic_addrset(0, 0)
-    face.systolic_addrset(10752, 1)
-    face.systolic_addrset(32256, 2)
-    face.systolic_addrset(32256, 3)
-    face.systolic_calc(336, 1 ,0 ,0 ,1)
+    # V = S'B + E'' : 4x4 systolic block, use 4 instructions to cover full 8x8 V
+    for row_blk in range(2):
+        for col_blk in range(2):
+            left_addr = row_blk * 5376
+            right_addr = 10752 + col_blk * 8
+            save_addr = 32256 + row_blk * 64 + col_blk * 8
+
+            face.systolic_addrset(left_addr, 0)
+            face.systolic_addrset(right_addr, 1)
+            face.systolic_addrset(save_addr, 2)
+            face.systolic_addrset(save_addr, 3)
+            face.systolic_calc(336, 1, 0, 0, 1)
     face.save("simdata/test.asm")
 
 if __name__ == "__main__":

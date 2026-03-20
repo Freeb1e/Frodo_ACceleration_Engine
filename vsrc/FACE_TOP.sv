@@ -97,7 +97,6 @@ module FACE_TOP(
     logic inpack_REG;
     logic inpack_right_REG;
     logic outpack_REG;
-    logic [2:0] mem_mode;
 
     logic hash_buffer_sel;  // 0: Systolic->HASH1, SHAKE->HASH2 | 1: Systolic->HASH2, SHAKE->HASH1
     logic [31:0] addr_HASH_systolic;
@@ -182,7 +181,6 @@ module FACE_TOP(
 
     assign dump_addr = {17'd0, dump_BASE_addr};
     assign bram_rdata_HASH = (hash_buffer_sel == 1'b0) ? bram_rdata_HASH1 : bram_rdata_HASH2;
-    assign mem_mode = (ctrl_mode_REG == SA) ? 3'd2 : 3'd1;
     assign bitbusy = {systolic_busy, sha3busy};
     assign sha3_ready_rise = sha3_ready && !sha3_ready_d;
 
@@ -192,8 +190,8 @@ module FACE_TOP(
     mul_top u_mul_top(
         .clk              (clk),
         .rst_n            (rst_n),
-        .mem_mode         (mem_mode),
         .calc_init        (calc_init),
+        .ctrl_mode        (ctrl_mode_REG),
         .inpack           (inpack_REG),
         .inpack_right     (inpack_right_REG),
         .outpack          (outpack_REG),

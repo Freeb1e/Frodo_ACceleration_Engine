@@ -1,7 +1,7 @@
 module mem_ctrl(
         input logic clk,
         input logic rst_n,
-        input logic [2:0] mem_mode,
+        input logic [1:0] ctrl_mode,
         input logic calc_init,
 
         input logic [31:0] BASE_ADDR_LEFT,
@@ -36,12 +36,15 @@ module mem_ctrl(
     parameter IDLE=4'd0;
     parameter AS_CALC=4'd1,AS_SAVE=4'd2;
     parameter SA_LOADWEIGHT=4'd3,SA_CALC=4'd4;
+    parameter AS=2'b00,SB=2'b01,BS=2'b10,SA=2'b11;
     logic [31:0] matrix_size_reg;
     logic [3:0] next_state;
     logic [31:0] Frodo_standard_A , Frodo_standard_SE;
     logic [31:0] BASE_ADDR_LEFT_REG, BASE_ADDR_RIGHT_REG, BASE_ADDR_ADDSRC_REG, BASE_ADDR_SAVE_REG;
     logic counter_init;
+    logic sa_path_mode;
     logic [31:0] cnt_line;
+    assign sa_path_mode = (ctrl_mode == SA);
     always_ff@(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             current_state<= IDLE;
@@ -69,7 +72,7 @@ module mem_ctrl(
         case (current_state)
             IDLE: begin
                 if(calc_init) begin
-                    next_state=(mem_mode == 3'd1) ? AS_CALC : SA_LOADWEIGHT;
+                    next_state = sa_path_mode ? SA_LOADWEIGHT : AS_CALC;
                 end
                 else begin
                     next_state=IDLE;
@@ -116,7 +119,7 @@ module mem_ctrl(
         end
         else begin // 0:数据传输 1:计算
             if(calc_init) begin
-                systolic_mode <= (mem_mode == 3'd1) ? 1'b1 : 1'b0;
+                systolic_mode <= sa_path_mode ? 1'b0 : 1'b1;
             end
             case(current_state)
                 AS_CALC:
@@ -184,8 +187,17 @@ module mem_ctrl(
         bram_addr_3 = 32'd0;
         case(current_state)
             AS_CALC: begin
-                bram_addr_1 = BASE_ADDR_LEFT_REG+cnt_line*32'd8+count_4*Frodo_standard_A ;
-                bram_addr_2 = BASE_ADDR_RIGHT_REG+cnt_line*32'd4+count_4*Frodo_standard_SE;
+                if (ctrl_mode == SB) begin
+                    // SB: left operand is S' (8-bit packed), right operand is B (16-bit)
+                    bram_addr_1 = BASE_ADDR_LEFT_REG + cnt_line*32'd4 + count_4*Frodo_standard_SE;
+                    // refB in RAM is laid out as 1344x8 (row-major, uint16), each row is 16 bytes
+                    // k = cnt_line*4 + count_4, read one 64-bit chunk => columns [0..3] (or [4..7] via BASE_ADDR_RIGHT offset)
+                    bram_addr_2 = BASE_ADDR_RIGHT_REG + cnt_line*32'd64 + count_4*32'd16;
+                end
+                else begin
+                    bram_addr_1 = BASE_ADDR_LEFT_REG + cnt_line*32'd8 + count_4*Frodo_standard_A;
+                    bram_addr_2 = BASE_ADDR_RIGHT_REG + cnt_line*32'd4 + count_4*Frodo_standard_SE;
+                end
             end
             AS_SAVE: begin
                 bram_addr_1 = BASE_ADDR_ADDSRC_REG + save_bias*16;

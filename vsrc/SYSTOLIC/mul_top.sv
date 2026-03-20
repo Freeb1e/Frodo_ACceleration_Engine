@@ -3,8 +3,8 @@
 module mul_top(
         input logic clk,
         input logic rst_n,
-        input logic [2:0] mem_mode,//0:idle 1:AS 2:SA 3:SB 4:BS
         input logic calc_init,
+        input logic [1:0] ctrl_mode, // 00:AS 01:SB 10:BS 11:SA
         input logic inpack,   // 读取时对16bit元素高低字节交换(unpack)
         input logic inpack_right, // 读取时对右矩阵数据进行16bit元素高低字节交换(unpack)
         input logic outpack,  // 输出时对16bit元素高低字节交换(pack)
@@ -46,6 +46,17 @@ module mul_top(
                data_right[23:16], data_right[31:24],
                data_right[7:0],   data_right[15:8]
            } : data_right;
+    logic [63:0] data_right_unpacked_d4;
+    delay_reg #(
+                  .DATA_WIDTH   	(64  ),
+                  .DELAY_CYCLES 	(4   ))
+              u_delay_reg_data_right_sb(
+                  .clk          	(clk           ),
+                  .rst_n        	(rst_n         ),
+                  .din          	(data_right_unpacked          ),
+                  .delay_switch 	(1'b1  ),
+                  .dout         	(data_right_unpacked_d4          )
+              );
     logic transposition_slect;
 
     logic [4*16-1:0] martix_out_transposition_1,martix_out_transposition_2;
@@ -57,13 +68,14 @@ module mul_top(
     parameter IDLE=4'd0;
     parameter AS_CALC=4'd1,AS_SAVE=4'd2;
     parameter SA_LOADWEIGHT=4'd3,SA_CALC=4'd4;
+    parameter AS=2'b00,SB=2'b01,BS=2'b10,SA=2'b11;
     logic transposition_dir;
     logic systolic_enable;
     logic transposition_rst_sync;
     mem_ctrl u_mem_ctrl(
                  .clk            	(clk             ),
                  .rst_n          	(rst_n           ),
-                 .mem_mode       	(mem_mode        ),
+                 .ctrl_mode     	(ctrl_mode      ),
                  .calc_init      	(calc_init       ),
    
                  .BASE_ADDR_LEFT    (BASE_ADDR_LEFT    ),
@@ -102,13 +114,22 @@ module mul_top(
     assign transposition_mode_1 = transposition_slect ? 1'b1 : 1'b0;
     assign transposition_mode_2 = transposition_slect ? 1'b0 : 1'b1;
 
+    logic sb_mode_as_path;
+    logic [63:0] data_left_processed;
+    logic [63:0] data_right_matrix;
+    logic [63:0] data_right_processed;
+    logic [63:0] half_select_source;
+    assign sb_mode_as_path = (ctrl_mode == SB) && ((current_state == AS_CALC) || (current_state == AS_SAVE));
+    assign half_select_source = sb_mode_as_path ? data_left_unpacked : data_right_unpacked;
+    assign data_left_processed = sb_mode_as_path ? HALF_SLECT_DATA : data_left_unpacked;
+
     transposition_top_default #(
                                   .DATA_WIDTH     	(16  ),
                                   .SYSTOLIC_WIDTH 	(4   ))
                               u_transposition_top_default_1(
                                   .clk        	(clk         ),
                                   .rst_n      	(rst_n       ),
-                                  .martix_in  	(data_left_unpacked   ),
+                                  .martix_in  	(data_left_processed   ),
                                   .martix_out 	(martix_out_transposition_1  ),
                                   .mode       	(transposition_mode_1        ),
                                   //.dir        (transposition_dir       ),
@@ -121,7 +142,7 @@ module mul_top(
                               u_transposition_top_default_2(
                                   .clk        	(clk         ),
                                   .rst_n      	(rst_n       ),
-                                  .martix_in  	(data_left_unpacked   ),
+                                  .martix_in  	(data_left_processed   ),
                                   .martix_out 	(martix_out_transposition_2  ),
                                   .mode       	(transposition_mode_2      ),
                                   //.dir        (transposition_dir      ),
@@ -132,15 +153,15 @@ module mul_top(
 
     logic [63:0] HALF_SLECT_DATA;
     assign HALF_SLECT_DATA = (~delayaddr5) ? {
-               {8{data_right_unpacked[31]}}, data_right_unpacked[31:24],  // Byte 3 -> [63:48]
-               {8{data_right_unpacked[23]}}, data_right_unpacked[23:16],  // Byte 2 -> [47:32]
-               {8{data_right_unpacked[15]}}, data_right_unpacked[15:8],   // Byte 1 -> [31:16]
-               {8{data_right_unpacked[7]}}, data_right_unpacked[7:0]     // Byte 0 -> [15:0]
+               {8{half_select_source[31]}}, half_select_source[31:24],  // Byte 3 -> [63:48]
+               {8{half_select_source[23]}}, half_select_source[23:16],  // Byte 2 -> [47:32]
+               {8{half_select_source[15]}}, half_select_source[15:8],   // Byte 1 -> [31:16]
+               {8{half_select_source[7]}}, half_select_source[7:0]     // Byte 0 -> [15:0]
            }: {
-               {8{data_right_unpacked[63]}}, data_right_unpacked[63:56],  // Byte 7 -> [63:48]
-               {8{data_right_unpacked[55]}}, data_right_unpacked[55:48],  // Byte 6 -> [47:32]
-               {8{data_right_unpacked[47]}}, data_right_unpacked[47:40],  // Byte 5 -> [31:16]
-               {8{data_right_unpacked[39]}}, data_right_unpacked[39:32]   // Byte 4 -> [15:0]
+               {8{half_select_source[63]}}, half_select_source[63:56],  // Byte 7 -> [63:48]
+               {8{half_select_source[55]}}, half_select_source[55:48],  // Byte 6 -> [47:32]
+               {8{half_select_source[47]}}, half_select_source[47:40],  // Byte 5 -> [31:16]
+               {8{half_select_source[39]}}, half_select_source[39:32]   // Byte 4 -> [15:0]
            };
     logic delayaddr5;
     logic set_addr;
@@ -158,7 +179,7 @@ module mul_top(
     always_comb begin
         case(current_state)
         AS_CALC: begin
-            set_addr=bram_addr_2[2];
+            set_addr=(ctrl_mode == SB) ? bram_addr_1[2] : bram_addr_2[2];
         end
         AS_SAVE: begin
             set_addr=bram_addr_1[2];
@@ -175,8 +196,8 @@ module mul_top(
     end
     assign transposition_mode_3 = transposition_slect ? 1'b1 : 1'b0;
     assign transposition_mode_4 = transposition_slect ? 1'b0 : 1'b1;
-    logic [63:0] data_right_processed;
-    assign data_right_processed =(current_state == SA_CALC) ? sum_out : HALF_SLECT_DATA;
+    assign data_right_matrix = sb_mode_as_path ? data_right_unpacked : HALF_SLECT_DATA;
+    assign data_right_processed =(current_state == SA_CALC) ? sum_out : data_right_matrix;
     transposition_top_default #(
                                   .DATA_WIDTH     	(16  ),
                                   .SYSTOLIC_WIDTH 	(4   ))
@@ -216,7 +237,12 @@ module mul_top(
         case(current_state)
             AS_CALC,AS_SAVE: begin
                 a_in_raw = transposition_slect ? martix_out_transposition_1 : martix_out_transposition_2 ;
-                b_in_raw = transposition_slect ? martix_out_transposition_3 : martix_out_transposition_4 ;
+                if (sb_mode_as_path) begin
+                    b_in_raw = data_right_unpacked_d4;
+                end
+                else begin
+                    b_in_raw = transposition_slect ? martix_out_transposition_3 : martix_out_transposition_4 ;
+                end
             end
             SA_LOADWEIGHT: begin
                 a_in_raw = HALF_SLECT_DATA ;

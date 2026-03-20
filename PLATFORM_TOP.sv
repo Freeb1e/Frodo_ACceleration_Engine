@@ -22,12 +22,14 @@ module PLATFORM_TOP(
     logic [3:0] current_state;
     logic save_wen;
     logic [63:0] bram_savedata;
+    logic [1:0] ctrl_mode_compat;
+    assign ctrl_mode_compat = (mem_mode == 3'd2) ? 2'b11 : 2'b00;
     
     mul_top u_mul_top(
         .clk             	(clk              ),
         .rst_n           	(rst_n            ),
-        .mem_mode        	(mem_mode         ),
         .calc_init       	(calc_init        ),
+        .ctrl_mode      	(ctrl_mode_compat ),
 
         .bram_data_1       (bram_data_1       ),
         .bram_data_2       (bram_data_2       ),
