@@ -23,8 +23,7 @@ module systolic_top#(
     logic [SYSTOLIC_WIDTH*DATA_WIDTH-1:0] a_in;
     logic [SYSTOLIC_WIDTH*DATA_WIDTH-1:0] b_in;
     logic [SYSTOLIC_WIDTH*SUM_WIDTH-1:0] sum_in;
-    // Build sum_out dynamically according to SYSTOLIC_WIDTH
-    // Each slice of width SUM_WIDTH takes sum_array[SYSTOLIC_WIDTH-1][k]
+
     always_comb begin
         for (int k = 0; k < SYSTOLIC_WIDTH; k = k + 1) begin
             // assign each SUM_WIDTH-bit slot from LSB upward

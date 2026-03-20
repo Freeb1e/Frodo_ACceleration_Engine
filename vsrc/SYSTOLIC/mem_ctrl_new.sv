@@ -4,23 +4,11 @@ module mem_ctrl(
         input logic [2:0] mem_mode,
         input logic calc_init,
 
-        // input logic [31:0] BASE_ADDR_S,
-        // input logic [31:0] BASE_ADDR_HASH,
-        // input logic [31:0] BASE_ADDR_B,
-
         input logic [31:0] BASE_ADDR_LEFT,
         input logic [31:0] BASE_ADDR_RIGHT,
         input logic [31:0] BASE_ADDR_ADDSRC,
         input logic [31:0] BASE_ADDR_SAVE,
         input logic [10:0] MATRIX_SIZE,
-
-        // input logic [63:0] bram_data_sb,
-        // input logic [63:0] bram_data_HASH,
-        // input logic [63:0] bram_data_sb_2,
-
-        // output logic [31:0] addr_sb,
-        // output logic [31:0] addr_HASH,
-        // output logic [31:0] addr_sb_2,
 
         input logic [63:0] bram_data_1,
         input logic [63:0] bram_data_2,
@@ -49,10 +37,8 @@ module mem_ctrl(
     parameter AS_CALC=4'd1,AS_SAVE=4'd2;
     parameter SA_LOADWEIGHT=4'd3,SA_CALC=4'd4;
     logic [31:0] matrix_size_reg;
-    //state machine
     logic [3:0] next_state;
     logic [31:0] Frodo_standard_A , Frodo_standard_SE;
-    // logic [31:0] BASE_ADDR_B_REG, BASE_ADDR_S_REG, BASE_ADDR_HASH_REG;
     logic [31:0] BASE_ADDR_LEFT_REG, BASE_ADDR_RIGHT_REG, BASE_ADDR_ADDSRC_REG, BASE_ADDR_SAVE_REG;
     logic counter_init;
     logic [31:0] cnt_line;
@@ -67,9 +53,6 @@ module mem_ctrl(
                 matrix_size_reg<=MATRIX_SIZE;
                 Frodo_standard_A <= MATRIX_SIZE * 32'd8;
                 Frodo_standard_SE <= MATRIX_SIZE * 32'd4;
-                // BASE_ADDR_B_REG <= BASE_ADDR_B;
-                // BASE_ADDR_S_REG <= BASE_ADDR_S;
-                // BASE_ADDR_HASH_REG <= BASE_ADDR_HASH;
                 BASE_ADDR_LEFT_REG <= BASE_ADDR_LEFT;
                 BASE_ADDR_RIGHT_REG <= BASE_ADDR_RIGHT;
                 BASE_ADDR_ADDSRC_REG <= BASE_ADDR_ADDSRC;
@@ -117,8 +100,9 @@ module mem_ctrl(
             SA_CALC: begin
                 if(cnt_line == matrix_size_reg + 4 && count_4==2'b1) begin
                     next_state=IDLE;
-                end else
-                next_state=SA_CALC;
+                end
+                else
+                    next_state=SA_CALC;
             end
             default:
                 next_state=IDLE;
@@ -200,28 +184,17 @@ module mem_ctrl(
         bram_addr_3 = 32'd0;
         case(current_state)
             AS_CALC: begin
-                // addr_HASH =BASE_ADDR_HASH_REG+cnt_line*32'd64+count_4*Frodo_standard_A;
-                // addr_sb = BASE_ADDR_S_REG+cnt_line*32'd32+count_4*Frodo_standard_SE;
                 bram_addr_1 = BASE_ADDR_LEFT_REG+cnt_line*32'd8+count_4*Frodo_standard_A ;
                 bram_addr_2 = BASE_ADDR_RIGHT_REG+cnt_line*32'd4+count_4*Frodo_standard_SE;
             end
             AS_SAVE: begin
-                // addr_sb = BASE_ADDR_B_REG +save_bias*16*8;
-                // addr_sb_2 = BASE_ADDR_B_REG +(save_bias_w)*16*8;
                 bram_addr_1 = BASE_ADDR_ADDSRC_REG + save_bias*16;
                 bram_addr_2 = BASE_ADDR_SAVE_REG + (save_bias_w)*16;
             end
             SA_LOADWEIGHT: begin
-                // addr_sb = BASE_ADDR_S + (2'd3-count_4)*Frodo_standard_SE;
                 bram_addr_1 = BASE_ADDR_LEFT_REG + (2'd3-count_4)*Frodo_standard_SE;
             end
             SA_CALC: begin
-                // addr_HASH = BASE_ADDR_HASH_REG + cnt_line*32'd64 + count_4*Frodo_standard_A;
-                // if(count_4==2 || count_4 == 3)
-                //     addr_sb_2 = BASE_ADDR_B_REG + (cnt_line-32'd4) * 32'd64 + save_bias_SA*Frodo_standard_A;
-                // else
-                //     addr_sb_2 = BASE_ADDR_B_REG + (cnt_line-32'd5) * 32'd64 + save_bias_SA*Frodo_standard_A;
-                // addr_sb=BASE_ADDR_B_REG + (cnt_line-32'd4) * 32'd64 + count_4*Frodo_standard_A;
                 bram_addr_3 = BASE_ADDR_RIGHT_REG + cnt_line*32'd8 + count_4*Frodo_standard_A;
                 if(count_4==2 || count_4 == 3)
                     bram_addr_2 = BASE_ADDR_SAVE_REG + (cnt_line-32'd4) * 32'd8 + save_bias_SA*Frodo_standard_A;
@@ -238,12 +211,9 @@ module mem_ctrl(
     end
     /* verilator lint_on WIDTH */
     always_comb begin
-      //  data_adder = bram_data_sb;
-          data_adder = bram_data_1;
+        data_adder = bram_data_1;
         case(current_state)
             AS_CALC: begin
-                // data_left = bram_data_HASH;
-                // data_right = bram_data_sb;
                 data_left = bram_data_1;
                 data_right = bram_data_2;
             end
@@ -252,14 +222,10 @@ module mem_ctrl(
                 data_right = 64'd0;
             end
             SA_LOADWEIGHT: begin
-                // data_left = 64'd0;
-                // data_right = bram_data_sb;
                 data_left = 64'd0;
                 data_right = bram_data_1;
             end
             SA_CALC: begin
-                // data_left = bram_data_HASH;
-                // data_right = 64'd0;
                 data_left = bram_data_3;
                 data_right = 64'd0;
             end
