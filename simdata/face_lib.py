@@ -67,8 +67,14 @@ class FaceLib:
     def shake_dumpaword(self, offset, start_addr):
         self._emit(f"SHAKE_dumpaword {offset}, {hex(start_addr)}")
 
-    def shake_absorb_genA(self, matrix_sign, block_num, row_index):
-        self._emit(f"SHAKE_absorb_genA {matrix_sign}, {block_num}, {hex(row_index)}")
+    def shake_absorb_genA(self, matrix_sign, block_num, row_index, pad_sel=0):
+        """
+        :param matrix_sign: 矩阵类型 (0:A, 1:SE)
+        :param block_num: 吸收块数参数
+        :param row_index: 行索引
+        :param pad_sel: 最后一字节补位选择 (0:0x5F, 1:0x96)
+        """
+        self._emit(f"SHAKE_absorb_genA {matrix_sign}, {block_num}, {hex(row_index)}, {pad_sel}")
 
     def nop(self):
         self._emit("NOP")

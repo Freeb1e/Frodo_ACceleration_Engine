@@ -26,7 +26,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | SHAKE_gen_A       |          `[31:30]mode` `[29]row_len_flag` `[28:26]reserved` `[25:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 4    |
 | SHAKE_gen_SE      | `[31:30]mode` `[29:25]offset` `[24]bram_id` `[23]esign` `[22:10]word_addr` `[9:7]FUNC` `[6:0]OPCODE` | 5 |
 | SHAKE_dumpaword    |                               `[29:25]offset` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 6    |
-| SHAKE_absorb_genA | `[31]matrix_sign` `[29:26]block_num` `[25:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 7    |
+| SHAKE_absorb_genA | `[31]matrix_sign` `[30]pad_sel` `[29:26]block_num` `[25:10]row_index` `[9:7]FUNC` `[6:0]OPCODE` | 7    |
 
 ### 指令详细解释
 | 指令名称              | 功能描述                                                    | 参数说明                                                                                                                    |
@@ -41,7 +41,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | **SHAKE_gen_A**       | A矩阵采样硬件循环：一次指令自动生成连续4行并写入 HASH 乒乓缓存区。           | **mode**: 标准 (0:640, 1:976, 2:1344)；**row_len_flag**: 行长度选择 (0:1344, 1:976)；**row_index**: 起始行号（内部自动生成4行）；写入地址固定从 0 开始。               |
 | **SHAKE_gen_SE**      | 从 SHAKE 状态提取数据经采样写入内存。                       | **mode**: 标准 (0:640, 1:976, 2:1344)；**offset**: 字偏移 (0-24)；**bram_id**: 目标 BRAM；**esign**: 标志位 (0:S, 1:E)；**word_addr**: 内存字地址。 |
 | **SHAKE_dumpaword**   | 将当前 SHAKE 状态块中指定的 64-bit 字转储到内存。           | **offset**: 字偏移 (0-24)；**start_addr**: 写入内存的起始偏移地址。                                                         |
-| **SHAKE_absorb_genA** | 用于生成矩阵 A 或 SE 的特定行处理指令。                     | **matrix_sign**: 矩阵类型 (0:A, 1:SE)；**block_num**: 块编号；**row_index**: 当前处理的行索引。                             |
+| **SHAKE_absorb_genA** | 用于生成矩阵 A 或 SE 的特定行处理指令。                     | **matrix_sign**: 矩阵类型 (0:A, 1:SE)；**pad_sel**: A路径末字节补位选择 (0:`8'h5F`, 1:`8'h96`)；**block_num**: 块编号；**row_index**: 当前处理的行索引。                             |
 
 ### 汇编指令格式说明
 为了方便编写 `.asm` 文件，汇编器支持以下格式（支持十进制或 `0x` 前缀的十六进制）：
@@ -58,7 +58,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | `SHAKE_gen_A 0, 0, 0x0`                | `mode`, `row_len_flag`, `row_index`                     |
 | `SHAKE_gen_SE 2, 0, 0, 0, 0x3000`      | `mode`, `offset`, `bram_id`, `esign`, `word_addr`  |
 | `SHAKE_dumpaword 0, 0x0`               | `offset`, `start_addr`                             |
-| `SHAKE_absorb_genA 0, 8, 0x1234`       | `matrix_sign`, `block_num`, `row_index`            |
+| `SHAKE_absorb_genA 0, 8, 0x1234, 1`    | `matrix_sign`, `block_num`, `row_index`, `pad_sel` |
 | `NOP`                                  | (空指令，生成 `0xAB000000`)                        |
 
 ---
@@ -89,6 +89,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 - **esign** [23]: 0 为 S 矩阵 (8-bit), 1 为 E 矩阵 (16-bit) (仅 gen_SE 有效)。
 - **word_addr**: 写入起始字偏移地址。
 - **matrix_sign** [31]: 矩阵类型标志位 (0:A, 1:SE)。
+- **pad_sel** [30]: `SHAKE_absorb_genA` 在 A 路径 `state==4'd4` 时的补位字节选择 (0:`8'h5F`, 1:`8'h96`)。
 - **block_num** [29:26]: 块编号 (4 bits)。
 - **row_index** [25:10]: 行索引 (16 bits)。
 ## systolic模块访存安排
@@ -97,7 +98,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | $AS$         | 左A时序  | A_buffer   | sp-ram     | sp-ram     | sp-ram   | 00   |
 | $S^\prime B$ | 左A时序  | dp-ram     | sp-ram     | dp-ram     | dp-ram   | 01   |
 | $B^\prime S$ | 左A时序  | dp-ram     | sp-ram     | dp-ram1    | dp-ram   | 10   |
-| $S'^A$       | 右A时序  | dp-ram     | A_buffer   | dp-ram     | dp-ram   | 11   |
+| $S^\prime A$       | 右A时序  | dp-ram     | A_buffer   | dp-ram     | dp-ram   | 11   |
 
 ### systolic 模块内部
 - AS_CALC（计算输入）

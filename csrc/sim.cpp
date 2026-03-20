@@ -104,7 +104,8 @@ void interactive_memory_query() {
     }
 }
 
-void global_meminit();
+void Keygen_init();
+void Encap_init();
 int main(int argc, char** argv, char** env) {
     dut = new VTEST_PLATFORM;
 
@@ -118,14 +119,15 @@ int main(int argc, char** argv, char** env) {
     dut -> rst_n = 0;
     tick();
     dut -> rst_n = 1;
-    global_meminit();
+   // Keygen_init();
+   Encap_init();
     //init_SA_test();
     //init_AS_test();
     //init_seedram(0); // 初始化种子数据到 SP_RAM
     //interactive_memory_query();
     tick();
     runtill();
-    const char* dump_file = "./output/Bout.bin";
+    const char* dump_file = "./output/SP_RAM.bin";
     if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE,0, RAM_SIZE))
     {
         printf("Dumped output data from SP_RAM successfully.\n");
@@ -134,15 +136,15 @@ int main(int argc, char** argv, char** env) {
     {
         printf("Failed to dump output data from SP_RAM.\n");
     }
-    // dump_file = "./output/Bout.txt";
-    // if(dump_ram_to_matrix(dump_file, sp_ram, RAM_SIZE,1344*8, 1344, 8))
-    // {
-    //     printf("Dumped output matrix from SP_RAM successfully.\n");
-    // }
-    // else
-    // {
-    //     printf("Failed to dump output matrix from SP_RAM.\n");
-    // }
+    dump_file = "./output/DP_RAM.bin";
+    if(dump_ram_to_bin(dump_file, dp_ram, RAM_SIZE,0, RAM_SIZE))
+    {
+        printf("Dumped output data from SP_RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to dump output data from SP_RAM.\n");
+    }
     dump_file = "./output/A_buffer_2.bin";
     if(dump_ram_to_bin(dump_file, A_buffer_2, BUFFER_SIZE, 0, BUFFER_SIZE))
     {
@@ -170,22 +172,24 @@ int main(int argc, char** argv, char** env) {
     exit(EXIT_SUCCESS);
 }
 //void pmem_write(int waddr, int bramid, long long wdata, char wmask) 
-void global_meminit(){
+void Keygen_init(){
     pmem_write(4064*8, 0, 0x4242424242424242, 0xFF);
     pmem_write(4064*8+8, 0, 0x4242424242424242, 0xFF);
     for(int i=0; i<8; i++){
         pmem_write((4048*8 + i*8), 0, 0x4242424242424242, 0xFF);
     }
-
-
-    // test_file = "./simdata/raminit/Bout.bin";
-    // if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
-    // {
-    //     printf("Loaded S data into HASH RAM successfully.\n");
-    // }
-    // else
-    // {
-    //     printf("Failed to load S data into HASH RAM.\n");
-    // }
-    //pmem_write(4, 0, 0xACBDABCD, 0xFF); 
+}
+void Encap_init(){
+    test_file = "./simdata/raminit/keygendone.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
+    for (int i = 0; i < 12; i++) {
+        pmem_write((4036*8 + i*8), 0, 0x4242424242424242, 0xFF);
+    }
 }

@@ -143,6 +143,7 @@ module FACE_TOP(
 
     logic [3:0] block_num;
     logic MATRIX_sign;
+    logic absorb_genA_pad_sel;  // 0: append 8'h5F, 1: append 8'h96
 
     // 流水对齐：sha3_data_out 已在 sha3_ctrl 中插入 1 拍寄存器，
     // 写使能和地址也需延迟 1 拍以保持对齐
@@ -362,7 +363,7 @@ module FACE_TOP(
                 end
                 else begin
                     if (absorb_genA_state == 4'd4)
-                        seed_data_in = {seed_A_buffer[55:0], 8'h5F};
+                        seed_data_in = {seed_A_buffer[55:0], absorb_genA_pad_sel ? 8'h96 : 8'h5F};
                     else if (absorb_genA_state < block_num + 4'd4)
                         seed_data_in = {seed_A_buffer[55:0], seed_A_buffer[127:120]};
                     else
@@ -633,6 +634,7 @@ module FACE_TOP(
             absorb_genA_state <= 4'd0;
             seed_A_buffer <= 128'd0;
             MATRIX_sign <= 1'b0;
+            absorb_genA_pad_sel <= 1'b0;
             absorb_genA_addr <= 32'd0;
 
             genA_loop_active <= 1'b0;
@@ -670,6 +672,7 @@ module FACE_TOP(
                     `SHAKE_absorb_genA_FUNC: begin
                         row_index_reg <= instr[25:10];
                         block_num <= instr[29:26];
+                        absorb_genA_pad_sel <= instr[30];
                         MATRIX_sign <= instr[31];
                         absorb_genA_active <= 1'b1;
                         absorb_genA_state <= 4'd1;
