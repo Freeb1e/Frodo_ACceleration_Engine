@@ -36,8 +36,16 @@ class FaceLib:
     # 2. SHAKE (SHA-3) 模块指令
     # ==========================================
 
-    def shake_seedaddrset(self, shakemode, start_addr):
-        self._emit(f"SHAKE_seedaddrset {shakemode}, {hex(start_addr)}")
+    def shake_seedaddrset(self, shakemode, start_addr, seedram_id=0):
+        """
+        :param shakemode: 0: SHAKE128, 1: SHAKE256
+        :param start_addr: 种子读取起始地址
+        :param seedram_id: 0: SP_RAM, 1: DP_RAM (默认 0)
+        """
+        if seedram_id == 0:
+            self._emit(f"SHAKE_seedaddrset {shakemode}, {hex(start_addr)}")
+        else:
+            self._emit(f"SHAKE_seedaddrset {shakemode}, {hex(start_addr)}, {seedram_id}")
 
     def shake_seedset(self, last_block_bytes, absorb_num):
         self._emit(f"SHAKE_seedset {last_block_bytes}, {absorb_num}")

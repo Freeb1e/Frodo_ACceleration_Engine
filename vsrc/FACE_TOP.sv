@@ -124,6 +124,8 @@ module FACE_TOP(
     logic [7:0] absorb_num;
     logic [7:0] last_block_bytes;
     logic shakemode;  // 0: SHAKE128, 1: SHAKE256
+    logic seedram_id;  // 0: SP_RAM, 1: DP_RAM
+    logic [63:0] seedram_rdata;
 
     // ------------------------------------------------------------------------
     // Sampling / dump / genA control
@@ -181,6 +183,7 @@ module FACE_TOP(
 
     assign dump_addr = {17'd0, dump_BASE_addr};
     assign bram_rdata_HASH = (hash_buffer_sel == 1'b0) ? bram_rdata_HASH1 : bram_rdata_HASH2;
+    assign seedram_rdata = (seedram_id == 1'b0) ? bram_rdata_sp_1 : bram_rdata_dp_1;
     assign bitbusy = {systolic_busy, sha3busy};
     assign sha3_ready_rise = sha3_ready && !sha3_ready_d;
 
@@ -352,7 +355,11 @@ module FACE_TOP(
         end
         else if (sha3busy) begin
             if (absorb_genA_active) begin
-                addr_sp_1 = absorb_genA_addr;
+                if (seedram_id == 1'b0)
+                    addr_sp_1 = absorb_genA_addr;
+                else
+                    addr_dp_1 = absorb_genA_addr;
+
                 if (MATRIX_sign) begin
                     if (absorb_genA_state == 4'd4)
                         seed_data_in = {seed_A_buffer[47:0], row_index_reg};
@@ -371,8 +378,14 @@ module FACE_TOP(
                 end
             end
             else begin
-                addr_sp_1 = sha3_addr_perip + SEED_BASE_ADDR;
-                seed_data_in = bram_rdata_sp_1;
+                if (seedram_id == 1'b0) begin
+                    addr_sp_1 = sha3_addr_perip + SEED_BASE_ADDR;
+                    seed_data_in = bram_rdata_sp_1;
+                end
+                else begin
+                    addr_dp_1 = sha3_addr_perip + SEED_BASE_ADDR;
+                    seed_data_in = bram_rdata_dp_1;
+                end
             end
 
             if (sample_mode == 2'd1) begin
@@ -516,6 +529,7 @@ module FACE_TOP(
             seg_absorb_num <= 8'd0;
             last_block_words <= 5'd0;
             shakemode <= 1'b0;
+            seedram_id <= 1'b0;
 
             dump_BASE_addr <= 15'd0;
             dumpram_id <= 1'b0;
@@ -530,6 +544,7 @@ module FACE_TOP(
                     `SHAKE_seedaddrset_FUNC: begin
                         SEED_BASE_ADDR <= {17'd0, instr[24:10]};
                         shakemode <= instr[25];
+                        seedram_id <= instr[26];
                     end
                     `SHAKE_seedset_FUNC: begin
                         absorb_num <= instr[17:10];
@@ -692,24 +707,24 @@ module FACE_TOP(
                     end
                     4'd2: begin
                         absorb_genA_state <= 4'd3;
-                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[63:0] <= seedram_rdata;
                         seed_A_buffer[127:64] <= seed_A_buffer[63:0];
                         absorb_genA_addr <= absorb_genA_addr + 32'd8;
                     end
                     4'd3: begin
-                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[63:0] <= seedram_rdata;
                         seed_A_buffer[127:64] <= seed_A_buffer[63:0];
                         absorb_genA_state <= 4'd4;
                         absorb_genA_addr <= absorb_genA_addr + 32'd8;
                     end
                     4'd4: begin
-                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[63:0] <= seedram_rdata;
                         seed_A_buffer[127:64] <= seed_A_buffer[63:0];
                         absorb_genA_state <= 4'd5;
                         absorb_genA_addr <= absorb_genA_addr + 32'd8;
                     end
                     default: begin
-                        seed_A_buffer[63:0] <= bram_rdata_sp_1;
+                        seed_A_buffer[63:0] <= seedram_rdata;
                         seed_A_buffer[127:64] <= seed_A_buffer[63:0];
                         absorb_genA_state <= absorb_genA_state + 4'd1;
                         absorb_genA_addr <= absorb_genA_addr + 32'd8;

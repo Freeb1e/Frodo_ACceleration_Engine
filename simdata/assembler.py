@@ -48,12 +48,14 @@ def assemble_line(line):
             machine_code = (inpack_right << 25) | (inpack << 24) | (outpack << 23) | (matrix_size << 12) | (ctrl_mode << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_seedaddrset":
-            # 格式: SHAKE_seedaddrset shakemode, start_addr
-            shakemode  = args[0] & 0x1    # [25] 1 bit
-            start_addr = args[1] & 0x7FFF # [24:10] 15 bits
+            # 格式: SHAKE_seedaddrset shakemode, start_addr, seedram_id(optional)
+            # seedram_id: [26] 1 bit, 0=SP_RAM, 1=DP_RAM，缺省为 0
+            shakemode   = args[0] & 0x1    # [25] 1 bit
+            start_addr  = args[1] & 0x7FFF # [24:10] 15 bits
+            seedram_id  = (args[2] & 0x1) if len(args) > 2 else 0
             func       = 0 & 0x7          # [9:7] FUNC = 0
             opcode     = OPCODE_SHAKE & 0x7F
-            machine_code = (shakemode << 25) | (start_addr << 10) | (func << 7) | opcode
+            machine_code = (seedram_id << 26) | (shakemode << 25) | (start_addr << 10) | (func << 7) | opcode
 
         elif inst == "SHAKE_seedset":
             # 格式: SHAKE_seedset last_block_bytes, absorb_num

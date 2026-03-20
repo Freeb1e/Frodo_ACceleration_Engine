@@ -123,8 +123,8 @@ int main(int argc, char** argv, char** env) {
     dut -> rst_n = 0;
     tick();
     dut -> rst_n = 1;
-   // Keygen_init();
-   Encap_init();
+    Keygen_init();
+   //Encap_init();
     //init_SA_test();
     //init_AS_test();
     //init_seedram(0); // 初始化种子数据到 SP_RAM
@@ -169,7 +169,7 @@ int main(int argc, char** argv, char** env) {
     }
 
     // 交互式查询循环
-    interactive_memory_query();
+   // interactive_memory_query();
 
     m_trace->close();
     delete dut;

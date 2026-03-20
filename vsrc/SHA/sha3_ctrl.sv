@@ -328,8 +328,8 @@ module sha3_ctrl(
             padding_typeB = 64'h0000_0000_0000_0000;
         end
 
-        if(is_last_block_total && !doing_partial) begin
-            // 整个hash的最后一块（完整块）：应用padding
+        if(is_last_block_total) begin
+            // 整个hash的最后一块：应用padding（完整块和半块模式均生效）
             if(last_block_bytes != 8'd0)begin
                 din_keccak = padding_typeA | padding_mask;
             end else begin

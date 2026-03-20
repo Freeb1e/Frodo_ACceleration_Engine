@@ -21,7 +21,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | systolic_bufswap  |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
 | frodo_v_encodeu_add |                                                         `[9:7]FUNC` `[6:0]TESTOPCODE` | 0    |
 | test_print_simtime |                                                         `[9:7]FUNC` `[6:0]TESTOPCODE` | 1    |
-| SHAKE_seedaddrset |                             `[25]shakemode` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 0    |
+| SHAKE_seedaddrset |              `[26]seedram_id` `[25]shakemode` `[24:10]start_addr`  `[9:7]FUNC` `[6:0]OPCODE` | 0    |
 | SHAKE_seedset     |                   `[25:18]last_block_bytes` `[17:10]absorb_num`  `[9:7]FUNC` `[6:0]OPCODE` | 1    |
 | SHAKE_squeezeonce |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
 | SHAKE_absorb      |                   `[22:18]last_block_words` `[17:10]seg_absorb_num` `[9:7]FUNC` `[6:0]OPCODE` | 3    |
@@ -38,7 +38,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | **systolic_bufswap**  | **乒乓缓存切换**。交换 HASH Buffer 1 和 2 的计算/生成角色。 | 无额外参数。执行后翻转内部 `hash_buffer_sel` 信号。                                                                         |
 | **frodo_v_encodeu_add** | 仿真专用，调用 DPI-C C函数执行 `V + encode(u)`。 | 无额外参数。使用独立 `TESTOPCODE`；C 函数内部按固定地址从 `sp_ram` 读取 `u`，从 `dp_ram` 读取 `V` 并原地写回。 |
 | **test_print_simtime** | 仿真专用，调用 DPI-C 打印当前 `sim_time`。 | 无额外参数。使用独立 `TESTOPCODE`；便于在固件流中打时间戳。 |
-| **SHAKE_seedaddrset** | 设置 SHAKE 算法吸收入库数据的起始地址和模式。               | **shakemode**: 0 为 SHAKE128, 1 为 SHAKE256；**start_addr**: 种子在内存中的起始地址。                                       |
+| **SHAKE_seedaddrset** | 设置 SHAKE 算法吸收入库数据的起始地址、模式和来源 RAM。      | **seedram_id**: 0 为 SP_RAM, 1 为 DP_RAM；**shakemode**: 0 为 SHAKE128, 1 为 SHAKE256；**start_addr**: 种子在内存中的起始地址。 |
 | **SHAKE_seedset**     | 设置吸收参数并启动 SHAKE Absorb 过程。                      | **absorb_num**: 总吸收的块数；**last_block_bytes**: 最后一个块的有效字节数。                                                |
 | **SHAKE_squeezeonce** | 执行一次 SHAKE Squeeze 操作，生成新的内部状态块。           | 无额外参数。                                                                                                                |
 | **SHAKE_absorb**      | **分段吸收指令**。在已配置的种子地址基础上继续吸收后续段。 | **last_block_words**: 完整块之后额外读取的 64-bit 字数；**seg_absorb_num**: 本段吸收的完整块数。                            |
@@ -57,7 +57,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | `systolic_bufswap`                     | (无操作数，触发 HASH Buffer 角色翻转)              |
 | `frodo_v_encodeu_add`                  | (无操作数，触发 DPI-C 执行 `V + encode(u)`)         |
 | `test_print_simtime`                   | (无操作数，触发 DPI-C 打印当前 `sim_time`)         |
-| `SHAKE_seedaddrset 1, 0x2000`          | `shakemode` (0:128, 1:256), `start_addr`           |
+| `SHAKE_seedaddrset 1, 0x2000[, 1]`     | `shakemode` (0:128, 1:256), `start_addr`, `seedram_id`(可选, 缺省=0/SP) |
 | `SHAKE_seedset 136, 1`                 | `last_block_bytes`, `absorb_num`                   |
 | `SHAKE_squeezeonce`                    | (无操作数)                                         |
 | `SHAKE_absorb 5, 2`                    | `last_block_words`, `seg_absorb_num`               |
@@ -92,8 +92,9 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 ### GEN指令参数说明:
 - **mode** [31:30]: 采样标准选择 (0:640, 1:976, 2:1344)。
 - **row_len_flag** [29]: A 矩阵单行长度选择 (0:1344, 1:976)，`SHAKE_gen_A` 内部按该长度循环4行。
+- **seedram_id** [26]: 仅 `SHAKE_seedaddrset` 使用，种子来源 RAM 选择 (0:SP_RAM, 1:DP_RAM)。
 - **row_index** [25:10]: `SHAKE_gen_A` 的起始行索引，指令内部自动处理连续4行。
-- **reserved** [28:26]: 保留位，当前写 0。
+- **reserved** [28:26]: 仅 `SHAKE_gen_A` 使用，保留位，当前写 0。
 - **bram_id** [24]: 0 为 SP_RAM, 1 为 DP_RAM (仅 gen_SE 有效)。
 - **esign** [23]: 0 为 S 矩阵 (8-bit), 1 为 E 矩阵 (16-bit) (仅 gen_SE 有效)。
 - **word_addr**: 写入起始字偏移地址。
