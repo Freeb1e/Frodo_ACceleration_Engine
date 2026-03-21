@@ -7,6 +7,7 @@ module mul_top(
         input logic [1:0] ctrl_mode, // 00:AS 01:SB 10:BS 11:SA
         input logic inpack,   // 读取时对16bit元素高低字节交换(unpack)
         input logic inpack_right, // 读取时对右矩阵数据进行16bit元素高低字节交换(unpack)
+    input logic addsrc_unpack, // 对累加源(addsrc)读取值进行16bit元素高低字节交换(unpack)
         input logic outpack,  // 输出时对16bit元素高低字节交换(pack)
 
         input logic [63:0] bram_data_1,
@@ -57,7 +58,6 @@ module mul_top(
                   .delay_switch 	(1'b1  ),
                   .dout         	(data_right_unpacked_d4          )
               );
-    logic [63:0] data_right_half_d4;
     logic transposition_slect;
 
     logic [4*16-1:0] martix_out_transposition_1,martix_out_transposition_2;
@@ -116,13 +116,11 @@ module mul_top(
     assign transposition_mode_2 = transposition_slect ? 1'b0 : 1'b1;
 
     logic sb_mode_as_path;
-    logic bs_mode_as_path;
     logic [63:0] data_left_processed;
     logic [63:0] data_right_matrix;
     logic [63:0] data_right_processed;
     logic [63:0] half_select_source;
     assign sb_mode_as_path = (ctrl_mode == SB) && ((current_state == AS_CALC) || (current_state == AS_SAVE));
-    assign bs_mode_as_path = (ctrl_mode == BS) && ((current_state == AS_CALC) || (current_state == AS_SAVE));
     assign half_select_source = sb_mode_as_path ? data_left_unpacked : data_right_unpacked;
     assign data_left_processed = sb_mode_as_path ? HALF_SLECT_DATA : data_left_unpacked;
 
@@ -166,16 +164,6 @@ module mul_top(
                {8{half_select_source[47]}}, half_select_source[47:40],  // Byte 5 -> [31:16]
                {8{half_select_source[39]}}, half_select_source[39:32]   // Byte 4 -> [15:0]
            };
-    delay_reg #(
-                  .DATA_WIDTH   	(64  ),
-                  .DELAY_CYCLES 	(4   ))
-              u_delay_reg_data_right_half_bs(
-                  .clk          	(clk           ),
-                  .rst_n        	(rst_n         ),
-                  .din          	(HALF_SLECT_DATA          ),
-                  .delay_switch 	(1'b1  ),
-                  .dout         	(data_right_half_d4          )
-              );
     logic delayaddr5;
     logic set_addr;
     delay_reg #(
@@ -253,9 +241,6 @@ module mul_top(
                 if (sb_mode_as_path) begin
                     b_in_raw = data_right_unpacked_d4;
                 end
-                else if (bs_mode_as_path) begin
-                    b_in_raw = data_right_half_d4;
-                end
                 else begin
                     b_in_raw = transposition_slect ? martix_out_transposition_3 : martix_out_transposition_4 ;
                 end
@@ -297,7 +282,15 @@ module mul_top(
     wire [16-1:0] sum3;
     wire [16-1:0] sum4;
     logic [4*16-1:0] data_adder;
+    logic [4*16-1:0] data_adder_unpacked;
     logic [4*16-1:0] sum_out_mux;
+    logic adder_sub_en;
+    assign data_adder_unpacked = addsrc_unpack ? {
+        data_adder[55:48], data_adder[63:56],
+        data_adder[39:32], data_adder[47:40],
+        data_adder[23:16], data_adder[31:24],
+        data_adder[7:0],   data_adder[15:8]
+    } : data_adder;
     always_comb begin
         if(current_state == SA_CALC)begin
             sum_out_mux = sum_out_transposed;
@@ -305,6 +298,7 @@ module mul_top(
             sum_out_mux = sum_out;
         end
     end
+    assign adder_sub_en = (ctrl_mode == BS) && (current_state == AS_SAVE);
     Adder_4 #(
                 .DATA_WIDTH 	(16  ))
             u_Adder_4(
@@ -312,14 +306,15 @@ module mul_top(
                 .a2   	(sum_out_mux[16*2-1:16*1]   ),
                 .a3   	(sum_out_mux[16*3-1:16*2]   ),
                 .a4   	(sum_out_mux[16*4-1:16*3]   ),
-                .b1   	(data_adder[16*1-1:16*0] ),
-                .b2   	(data_adder[16*2-1:16*1] ),
-                .b3   	(data_adder[16*3-1:16*2] ),
-                .b4   	(data_adder[16*4-1:16*3] ),
+                .b1   	(data_adder_unpacked[16*1-1:16*0] ),
+                .b2   	(data_adder_unpacked[16*2-1:16*1] ),
+                .b3   	(data_adder_unpacked[16*3-1:16*2] ),
+                .b4   	(data_adder_unpacked[16*4-1:16*3] ),
                 .sum1 	(sum1  ),
                 .sum2 	(sum2  ),
                 .sum3 	(sum3  ),
                 .sum4 	(sum4  ),
+                .sub_en (adder_sub_en),
                 .clk   	(clk    ),
                 .rst_n 	(rst_n  )
             );

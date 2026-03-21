@@ -17,9 +17,9 @@ class FaceLib:
     def systolic_addrset(self, addr, target):
         self._emit(f"systolic_addrset {hex(addr)}, {target}")
 
-    def systolic_calc(self, matrix_size, ctrl_mode, inpack=0, outpack=0, inpack_right=0):
+    def systolic_calc(self, matrix_size, ctrl_mode, inpack=0, outpack=0, inpack_right=0, addsrc_unpack=0):
 
-        self._emit(f"systolic_calc {matrix_size}, {ctrl_mode}, {inpack}, {outpack}, {inpack_right}")
+        self._emit(f"systolic_calc {matrix_size}, {ctrl_mode}, {inpack}, {outpack}, {inpack_right}, {addsrc_unpack}")
 
     def systolic_bufswap(self):
         self._emit("systolic_bufswap")

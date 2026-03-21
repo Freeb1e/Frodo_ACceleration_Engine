@@ -196,8 +196,9 @@ module mem_ctrl(
                 end
                 else if (ctrl_mode == BS) begin
                     // BS: left operand is B' (16-bit), right operand is S (8-bit packed)
-                    // left read follows refB row-major stream, right read follows packed-S stream
-                    bram_addr_1 = BASE_ADDR_LEFT_REG + cnt_line*32'd64 + count_4*32'd16;
+                    // B' is stored as 8x1344 row-major (uint16), row stride is Frodo_standard_A (= MATRIX_SIZE*8 bytes)
+                    // cnt_line selects 4-word chunk inside one row, count_4 selects row index in current 4-row block
+                    bram_addr_1 = BASE_ADDR_LEFT_REG + cnt_line*32'd8 + count_4*Frodo_standard_A;
                     bram_addr_2 = BASE_ADDR_RIGHT_REG + cnt_line*32'd4 + count_4*Frodo_standard_SE;
                 end
                 else begin

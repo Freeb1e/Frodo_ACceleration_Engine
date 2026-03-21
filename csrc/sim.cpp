@@ -8,9 +8,9 @@
 #include <fstream>
 #include <iomanip>
 #include "testinit.h"
-#define MAX_SIM_TIME 27000000
+#define MAX_SIM_TIME 27000
 vluint64_t sim_time = 0;
-bool trace_on = false; // 控制波形开关：true 开启，false 关闭
+bool trace_on = true; // 控制波形开关：true 开启，false 关闭
 
 VTEST_PLATFORM *dut = nullptr;
 VerilatedVcdC *m_trace = nullptr;
@@ -111,6 +111,7 @@ void interactive_memory_query() {
 void Keygen_init();
 void Encap_init();
 void Encapss_init();
+void decap_init();
 int main(int argc, char** argv, char** env) {
     dut = new VTEST_PLATFORM;
 
@@ -124,7 +125,8 @@ int main(int argc, char** argv, char** env) {
     dut -> rst_n = 0;
     tick();
     dut -> rst_n = 1;
-    Keygen_init();
+    //Keygen_init();
+    decap_init();
     //Encap_init();
     //Encapss_init();
     //init_SA_test();
@@ -211,6 +213,28 @@ void Encapss_init(){
         printf("Failed to load S data into HASH RAM.\n");
     }
     test_file = "./simdata/raminit/DP_RAM_encap.bin";
+    if(load_bin_to_ram(test_file, dp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
+
+}
+
+void decap_init(){
+    test_file = "./simdata/raminit/SP_RAM_encapdone.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded S data into HASH RAM successfully.\n");
+    }
+    else
+    {
+        printf("Failed to load S data into HASH RAM.\n");
+    }
+    test_file = "./simdata/raminit/DP_RAM_encapdone.bin";
     if(load_bin_to_ram(test_file, dp_ram, RAM_SIZE, 0))
     {
         printf("Loaded S data into HASH RAM successfully.\n");

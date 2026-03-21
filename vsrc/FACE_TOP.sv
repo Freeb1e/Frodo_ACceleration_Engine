@@ -96,6 +96,7 @@ module FACE_TOP(
     logic [1:0] ctrl_mode_REG;
     logic inpack_REG;
     logic inpack_right_REG;
+    logic addsrc_unpack_REG;
     logic outpack_REG;
 
     logic hash_buffer_sel;  // 0: Systolic->HASH1, SHAKE->HASH2 | 1: Systolic->HASH2, SHAKE->HASH1
@@ -197,6 +198,7 @@ module FACE_TOP(
         .ctrl_mode        (ctrl_mode_REG),
         .inpack           (inpack_REG),
         .inpack_right     (inpack_right_REG),
+        .addsrc_unpack    (addsrc_unpack_REG),
         .outpack          (outpack_REG),
         .bram_data_1      (bram_data_1),
         .bram_data_2      (bram_data_2),
@@ -468,6 +470,7 @@ module FACE_TOP(
             ctrl_mode_REG <= 2'b00;
             inpack_REG <= 1'b0;
             inpack_right_REG <= 1'b0;
+            addsrc_unpack_REG <= 1'b0;
             outpack_REG <= 1'b0;
             hash_buffer_sel <= 1'b0;
         end
@@ -487,6 +490,7 @@ module FACE_TOP(
                     ctrl_mode_REG <= ctrl_mode;
                     inpack_REG <= instr[24];
                     inpack_right_REG <= instr[25];
+                    addsrc_unpack_REG <= instr[26];
                     outpack_REG <= instr[23];
                     calc_init <= 1'b1;
                     MATRIX_SIZE <= instr[22:12];

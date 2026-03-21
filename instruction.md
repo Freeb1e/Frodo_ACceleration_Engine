@@ -17,7 +17,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | function          |                                                                          instruction[31:0] | FUNC |
 | :---------------- | -----------------------------------------------------------------------------------------: | :--- |
 | systolic_addrset  |                               `[31:12]BASE_ADDR` `[11:10]SETTAR` `[9:7]FUNC` `[6:0]OPCODE` | 0    |
-| systolic_calc     | `[25]inpack_right` `[24]inpack` `[23]outpack` `[22:12]MATRIX_SIZE` `[11:10]ctrl_mode` `[9:7]FUNC` `[6:0]OPCODE` | 1    |
+| systolic_calc     | `[26]addsrc_unpack` `[25]inpack_right` `[24]inpack` `[23]outpack` `[22:12]MATRIX_SIZE` `[11:10]ctrl_mode` `[9:7]FUNC` `[6:0]OPCODE` | 1    |
 | systolic_bufswap  |                                                                  `[9:7]FUNC` `[6:0]OPCODE` | 2    |
 | frodo_v_encodeu_add |                                                         `[9:7]FUNC` `[6:0]TESTOPCODE` | 0    |
 | test_print_simtime |                                                         `[9:7]FUNC` `[6:0]TESTOPCODE` | 1    |
@@ -34,7 +34,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | 指令名称              | 功能描述                                                    | 参数说明                                                                                                                    |
 | :-------------------- | :---------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
 | **systolic_addrset**  | 设置脉动阵列访问内存的基地址寄存器。                        | **BASE_ADDR**: 20位基地址；**SETTAR**: 目标寄存器 (0:LEFT, 1:RIGHT, 2:ADDSRC, 3:SAVE)。                                     |
-| **systolic_calc**     | 启动脉动阵列矩阵乘加运算。                                  | **inpack_right**: 右输入读取时字节交换；**inpack**: 左输入读取时字节交换；**outpack**: 输出时字节交换；**MATRIX_SIZE**: 矩阵维度/计算长度；**ctrl_mode**: 计算阶段模式 (00:AS, 01:S'B, 10:B'S, 11:S'A)。 |
+| **systolic_calc**     | 启动脉动阵列矩阵乘加运算。                                  | **addsrc_unpack**: 累加源读取时字节交换；**inpack_right**: 右输入读取时字节交换；**inpack**: 左输入读取时字节交换；**outpack**: 输出时字节交换；**MATRIX_SIZE**: 矩阵维度/计算长度；**ctrl_mode**: 计算阶段模式 (00:AS, 01:S'B, 10:B'S, 11:S'A)。 |
 | **systolic_bufswap**  | **乒乓缓存切换**。交换 HASH Buffer 1 和 2 的计算/生成角色。 | 无额外参数。执行后翻转内部 `hash_buffer_sel` 信号。                                                                         |
 | **frodo_v_encodeu_add** | 仿真专用，调用 DPI-C C函数执行 `V + encode(u)`。 | 无额外参数。使用独立 `TESTOPCODE`；C 函数内部按固定地址从 `sp_ram` 读取 `u`，从 `dp_ram` 读取 `V` 并原地写回。 |
 | **test_print_simtime** | 仿真专用，调用 DPI-C 打印当前 `sim_time`。 | 无额外参数。使用独立 `TESTOPCODE`；便于在固件流中打时间戳。 |
@@ -53,7 +53,7 @@ extern uint8_t PC_ROM[PC_ROM_SIZE];
 | 汇编指令示例                           | 操作数顺序与意义                                   |
 | :------------------------------------- | :------------------------------------------------- |
 | `systolic_addrset 0x1000, 0`           | `BASE_ADDR`, `SETTAR`                              |
-| `systolic_calc 64, 0, 1, 0, 1`              | `MATRIX_SIZE`, `ctrl_mode`, `inpack`, `outpack`, `inpack_right`    |
+| `systolic_calc 64, 0, 1, 0, 1[, 1]`              | `MATRIX_SIZE`, `ctrl_mode`, `inpack`, `outpack`, `inpack_right`, `addsrc_unpack`(可选, 缺省=0)    |
 | `systolic_bufswap`                     | (无操作数，触发 HASH Buffer 角色翻转)              |
 | `frodo_v_encodeu_add`                  | (无操作数，触发 DPI-C 执行 `V + encode(u)`)         |
 | `test_print_simtime`                   | (无操作数，触发 DPI-C 打印当前 `sim_time`)         |
