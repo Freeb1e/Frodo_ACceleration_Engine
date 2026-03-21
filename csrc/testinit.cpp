@@ -97,3 +97,73 @@ void init_seedram(int mode) {
     // dut->absorb_num = times;
     // dut->last_block_bytes = last_lenth;
 }
+//void pmem_write(int waddr, int bramid, long long wdata, char wmask) 
+void Keygen_init(){
+    pmem_write(4064*8, 0, 0x4242424242424242, 0xFF);
+    pmem_write(4064*8+8, 0, 0x4242424242424242, 0xFF);
+    for(int i=0; i<8; i++){
+        pmem_write((4048*8 + i*8), 0, 0x4242424242424242, 0xFF);
+    }
+}
+void Encap_init(){
+    test_file = "./simdata/raminit/keygendone.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded %s into SP_RAM successfully.\n", test_file);
+    }
+    else
+    {
+        printf("Failed to load %s into SP_RAM.\n", test_file);
+    }
+    for (int i = 0; i < 12; i++) {
+        pmem_write((4036*8 + i*8), 0, 0x4242424242424242, 0xFF);
+    }
+}
+
+void Encapss_init(){
+    test_file = "./simdata/raminit/SP_RAM_encap.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded %s into SP_RAM successfully.\n", test_file);
+    }
+    else
+    {
+        printf("Failed to load %s into SP_RAM.\n", test_file);
+    }
+    test_file = "./simdata/raminit/DP_RAM_encap.bin";
+    if(load_bin_to_ram(test_file, dp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded %s into DP_RAM successfully.\n", test_file);
+    }
+    else
+    {
+        printf("Failed to load %s into DP_RAM.\n", test_file);
+    }
+
+}
+
+void decap_init(){
+    test_file = "./simdata/raminit/SP_RAM_encapdone.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded %s into SP_RAM successfully.\n", test_file);
+    }
+    else
+    {
+        printf("Failed to load %s into SP_RAM.\n", test_file);
+    }
+    test_file = "./simdata/raminit/DP_RAM_encapdone.bin";
+    if(load_bin_to_ram(test_file, dp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded %s into DP_RAM successfully.\n", test_file);
+    }
+    else
+    {
+        printf("Failed to load %s into DP_RAM.\n", test_file);
+    }
+}
+
+void init_instram(){
+    bool load_bin_to_ram(const char* filename, uint8_t* ram_ptr, uint32_t max_size, uint32_t offset);
+    load_bin_to_ram("./simdata/firmware.bin",PC_ROM,PC_ROM_SIZE, 0);
+}

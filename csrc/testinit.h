@@ -1,5 +1,10 @@
 extern void init_SA_test();
 extern void init_AS_test();
 extern void init_seedram(int mode);
+extern void Keygen_init();
+extern void Encap_init();
+extern void Encapss_init();
+extern void decap_init();
+extern void init_instram();
 extern const char* test_file;
 extern const char* dump_file;

@@ -4,6 +4,9 @@ extern bool dump_ram_to_bin(const char* filename, const uint8_t* ram_ptr, uint32
 extern bool dump_ram_to_matrix(const char* filename, const uint8_t* ram_ptr, uint32_t max_size, 
                         uint32_t start_offset, uint32_t rows, uint32_t cols);
 extern bool load_bin_to_ram_protect(const char* filename, uint8_t* ram_ptr, uint32_t max_size, uint32_t offset);
+extern void dump_bram_to_terminal(int bramid, uint32_t addr, uint32_t length);
+extern void dump_ALL_BRAM();
+extern void interactive_memory_query();
 #define RAM_SIZE    (64 * 1024)
 #define BUFFER_SIZE (10752)
 #define PC_ROM_SIZE 2000000

@@ -1,0 +1,8 @@
+#define MAX_SIM_TIME 6000000
+
+// #define KEYGEN_TEST 
+// #define ENCAP_TEST 
+#define DECAP_TEST 
+
+// #define ENABLE_INTERACTIVE_MEMORY_QUERY
+#define TRACE_ON
