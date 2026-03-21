@@ -199,8 +199,11 @@ def generate_keygen():
     face.shake_dumpaword(3, 4032*8+24)     # pkh word3
 
     face.save("simdata/test.asm")
-
+def specialinput():
+    face = FaceLib()
+    face.save("simdata/test.asm")
 if __name__ == "__main__":
-    generate_decap_c_minus_bs()
-    #generate_keygen()
+    # generate_decap_c_minus_bs()
+    generate_keygen()
     # generate_encap()
+    # specialinput()
