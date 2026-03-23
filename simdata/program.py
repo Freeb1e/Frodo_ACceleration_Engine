@@ -78,7 +78,7 @@ def generate_encap():
         face.systolic_addrset(21504, 2)
         face.systolic_addrset(21504, 3)
         face.systolic_calc(336, 3 ,0 ,pack ,0)
-    
+    face.systolic_bufswap()
     # V = S'B + E'' : 4x4 systolic block, use 4 instructions to cover full 8x8 V
     for row_blk in range(2):
         for col_blk in range(2):
@@ -91,10 +91,10 @@ def generate_encap():
             face.systolic_addrset(save_addr, 2)
             face.systolic_addrset(save_addr, 3)
             face.systolic_calc(336, 1, 0, 0, 1)
-    face.test_print_simtime()
+    
     # C = V + encode(u)
     face.frodo_v_encodeu_add()
-
+    face.systolic_bufswap()
     # ss = SHAKE256(Pack(B') || Pack(C) || salt || k)
     # B' : 21504 bytes @ dp[10752]
     # C  :   128 bytes @ dp[32256]，与 B' 连续
@@ -114,7 +114,7 @@ def generate_encap():
 
     for i in range(4):
         face.shake_dumpaword(i, 4066 * 8 + i * 8)
-
+    face.test_print_simtime()
     face.save("simdata/test.asm")
     
 def generate_keygen():
@@ -147,26 +147,7 @@ def generate_keygen():
         face.shake_squeezeonce()
         addri += addrj
 
-
-    ##生成A矩阵的四行
-    face.shake_seedaddrset(0,32512)
-    linenum = 0
-    face.shake_gen_a(2, 0, linenum)
-    face.systolic_bufswap()
-    face.systolic_addrset(0, 0)
-    face.systolic_addrset(0, 1)
-    face.systolic_addrset(10752,2)
-    face.systolic_addrset(10752,3)
-    face.systolic_calc(336, 0, 0, 1, 0)
-    
-    face.systolic_addrset(0, 0)
-    face.systolic_addrset(5376, 1)
-    face.systolic_addrset(10760,2)
-    face.systolic_addrset(10760,3)
-    face.systolic_calc(336, 0, 0, 1, 0)
-    face.shake_seedaddrset(0,32512)
-    face.comment("GENA2")
-    for block in range(1,336):
+    for block in range(0,336):
         ##生成A矩阵的四行
         face.shake_seedaddrset(0,32512)
         face.shake_gen_a(2, 0, block * 4)
@@ -187,6 +168,7 @@ def generate_keygen():
     # 生成pkh = SHAKE256(seedA || Pack(B))
     # seedA: 16字节(2字) @ 32512, B: 21504字节(2688字) @ 10752
     # 合计21520字节, 159块, last_block_bytes=32
+    face.systolic_bufswap()
     face.comment("Generate pkh = SHAKE256(seedA || B)")
     face.shake_seedaddrset(1, 32512)       # SHAKE256, seedA地址
     face.shake_seedset(32, 159)            # absorb_num=159, last_block_bytes=32
@@ -197,13 +179,13 @@ def generate_keygen():
     face.shake_dumpaword(1, 4032*8+8)      # pkh word1
     face.shake_dumpaword(2, 4032*8+16)     # pkh word2
     face.shake_dumpaword(3, 4032*8+24)     # pkh word3
-
+    face.test_print_simtime()
     face.save("simdata/test.asm")
 def specialinput():
     face = FaceLib()
     face.save("simdata/test.asm")
 if __name__ == "__main__":
     # generate_decap_c_minus_bs()
-    generate_keygen()
-    # generate_encap()
+    # generate_keygen()
+     generate_encap()
     # specialinput()

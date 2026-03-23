@@ -2,7 +2,9 @@
 module FACE_TOP(
     input logic clk,
     input logic rst_n,
-    input logic [31:0] instr,
+    input logic [31:0] instr_sys,
+    input logic [31:0] instr_sha,
+    input logic [31:0] instr_barrier,
 
     input logic [63:0] bram_rdata_sp_1,
     input logic [63:0] bram_rdata_sp_2,
@@ -57,12 +59,19 @@ module FACE_TOP(
     // ------------------------------------------------------------------------
     // Instruction decode signals
     // ------------------------------------------------------------------------
-    logic [18:0] BASE_ADDR;
+    // Systolic 指令解码信号
+    logic [18:0] BASE_ADDR_SYS;
     logic [10:0] MATRIX_SIZE;
-    logic [6:0] OPCODE;
-    logic [2:0] FUNC;
-    logic [1:0] setaddr;   // 控制设置的 BASE_ADDR 是哪一个
-    logic [1:0] ctrl_mode;
+    logic [6:0]  OPCODE_SYS;
+    logic [2:0]  FUNC_SYS;
+    logic [1:0]  setaddr_sys;
+    logic [1:0]  ctrl_mode_sys;
+
+    // SHA 指令解码信号
+    logic [18:0] BASE_ADDR_SHA;
+    logic [6:0]  OPCODE_SHA;
+    logic [2:0]  FUNC_SHA;
+    logic [1:0]  setaddr_sha;
 
     // ------------------------------------------------------------------------
     // Busy / status signals
@@ -176,15 +185,27 @@ module FACE_TOP(
     // ------------------------------------------------------------------------
     // Continuous assignments
     // ------------------------------------------------------------------------
-    assign BASE_ADDR = instr[30:12];
-    assign FUNC = instr[9:7];
-    assign OPCODE = instr[6:0];
-    assign setaddr = instr[11:10];
-    assign ctrl_mode = instr[11:10];
+    assign BASE_ADDR_SYS = instr_sys[30:12];
+    assign FUNC_SYS      = instr_sys[9:7];
+    assign OPCODE_SYS    = instr_sys[6:0];
+    assign setaddr_sys   = instr_sys[11:10];
+    assign ctrl_mode_sys = instr_sys[11:10];
+
+    assign BASE_ADDR_SHA = instr_sha[30:12];
+    assign FUNC_SHA      = instr_sha[9:7];
+    assign OPCODE_SHA    = instr_sha[6:0];
+
+    // Barrier 指令解码（SWAP 走此通道）
+    wire [6:0] OPCODE_BARRIER = instr_barrier[6:0];
+    wire [2:0] FUNC_BARRIER   = instr_barrier[9:7];
 
     assign dump_addr = {17'd0, dump_BASE_addr};
     assign bram_rdata_HASH = (hash_buffer_sel == 1'b0) ? bram_rdata_HASH1 : bram_rdata_HASH2;
-    assign seedram_rdata = (seedram_id == 1'b0) ? bram_rdata_sp_1 : bram_rdata_dp_1;
+    // absorb_genA 并行时走 port 2 读 seed，避免与 systolic port 1 冲突
+    wire seed_use_port2 = systolic_busy && absorb_genA_active;
+    assign seedram_rdata = (seedram_id == 1'b0)
+        ? (seed_use_port2 ? bram_rdata_sp_2 : bram_rdata_sp_1)
+        : (seed_use_port2 ? bram_rdata_dp_2 : bram_rdata_dp_1);
     assign bitbusy = {systolic_busy, sha3busy};
     assign sha3_ready_rise = sha3_ready && !sha3_ready_d;
 
@@ -264,6 +285,7 @@ module FACE_TOP(
     end
 
     // BRAM 路由与写回控制
+    // 改为并行路由：systolic 和 SHA3 可同时访问不同 BRAM 端口
     always_comb begin
         addr_HASH_systolic = 32'd0;
         addr_HASH_1 = 32'd0;
@@ -294,15 +316,14 @@ module FACE_TOP(
         sp2_wmask = 8'hFF;
         dp2_wmask = 8'hFF;
 
+        // ---- Systolic BRAM 路由（独立块）----
         if (systolic_busy) begin
             case (current_state)
                 SA_LOADWEIGHT: begin
-                    // 从 dp 中读取 data
                     addr_dp_1 = bram_addr_1;
                     bram_data_1 = bram_rdata_dp_1;
                 end
                 SA_CALC: begin
-                    // 从 dp 中读取/写回，同时从 HASH 中读取权重
                     addr_dp_1 = bram_addr_1;
                     addr_dp_2 = bram_addr_2;
                     addr_HASH_systolic = bram_addr_3;
@@ -355,12 +376,24 @@ module FACE_TOP(
                 end
             endcase
         end
-        else if (sha3busy) begin
+
+        // ---- SHA3 BRAM 路由（独立块，可与 systolic 并行）----
+        if (sha3busy) begin
             if (absorb_genA_active) begin
-                if (seedram_id == 1'b0)
-                    addr_sp_1 = absorb_genA_addr;
-                else
-                    addr_dp_1 = absorb_genA_addr;
+                // absorb_genA 读 seed：systolic 空闲时走 port 1，忙时走 port 2
+                // SWAP 后 systolic 刚启动，处于 AS_CALC 初期，port 2 空闲，安全
+                if (systolic_busy) begin
+                    if (seedram_id == 1'b0)
+                        addr_sp_2 = absorb_genA_addr;
+                    else
+                        addr_dp_2 = absorb_genA_addr;
+                end
+                else begin
+                    if (seedram_id == 1'b0)
+                        addr_sp_1 = absorb_genA_addr;
+                    else
+                        addr_dp_1 = absorb_genA_addr;
+                end
 
                 if (MATRIX_sign) begin
                     if (absorb_genA_state == 4'd4)
@@ -379,7 +412,8 @@ module FACE_TOP(
                         seed_data_in = {56'd0, seed_A_buffer[127:120]};
                 end
             end
-            else begin
+            else if (!systolic_busy) begin
+                // 非 genA 的 seed 读取
                 if (seedram_id == 1'b0) begin
                     addr_sp_1 = sha3_addr_perip + SEED_BASE_ADDR;
                     seed_data_in = bram_rdata_sp_1;
@@ -390,8 +424,8 @@ module FACE_TOP(
                 end
             end
 
+            // genA 写 HASH buffer：写到 systolic 未占用的那个 buffer，无冲突
             if (sample_mode == 2'd1) begin
-                // genA 特殊处理：写到当前未被 systolic 占用的 HASH buffer
                 bram_wdata_HASH = final_sha3_data_out;
                 if (hash_buffer_sel == 1'b0) begin
                     addr_HASH_2 = dump_addr_d;
@@ -402,33 +436,35 @@ module FACE_TOP(
                     wen_HASH_1 = sampling_wen_d;
                 end
             end
-            else if (dumpram_id == 1'b0) begin
-                // 其他指令（genSE 等）维持原有 RAM 路由
-                addr_sp_2 = (sample_mode != 2'd0) ? dump_addr_d : (dump_addr_d + sha3_addr_perip);
-                wen_sp_2 = sampling_wen_d;
+            else if (!systolic_busy) begin
+                // genSE / dump 等写 SP/DP RAM（仅在 systolic 空闲时，避免端口冲突）
+                if (dumpram_id == 1'b0) begin
+                    addr_sp_2 = (sample_mode != 2'd0) ? dump_addr_d : (dump_addr_d + sha3_addr_perip);
+                    wen_sp_2 = sampling_wen_d;
 
-                if (sample_mode == 2'd2 && !is_e_matrix_reg) begin
-                    bram_wdata_sp_2 = (addr_sp_2[2] == 1'b0) ?
-                        {32'd0, final_sha3_data_out[31:0]} :
-                        {final_sha3_data_out[31:0], 32'd0};
-                    sp2_wmask = (addr_sp_2[2] == 1'b0) ? 8'h0F : 8'hF0;
+                    if (sample_mode == 2'd2 && !is_e_matrix_reg) begin
+                        bram_wdata_sp_2 = (addr_sp_2[2] == 1'b0) ?
+                            {32'd0, final_sha3_data_out[31:0]} :
+                            {final_sha3_data_out[31:0], 32'd0};
+                        sp2_wmask = (addr_sp_2[2] == 1'b0) ? 8'h0F : 8'hF0;
+                    end
+                    else begin
+                        bram_wdata_sp_2 = final_sha3_data_out;
+                    end
                 end
                 else begin
-                    bram_wdata_sp_2 = final_sha3_data_out;
-                end
-            end
-            else begin
-                addr_dp_2 = (sample_mode != 2'd0) ? dump_addr_d : (dump_addr_d + sha3_addr_perip);
-                wen_dp_2 = sampling_wen_d;
+                    addr_dp_2 = (sample_mode != 2'd0) ? dump_addr_d : (dump_addr_d + sha3_addr_perip);
+                    wen_dp_2 = sampling_wen_d;
 
-                if (sample_mode == 2'd2 && !is_e_matrix_reg) begin
-                    bram_wdata_dp_2 = (addr_dp_2[2] == 1'b0) ?
-                        {32'd0, final_sha3_data_out[31:0]} :
-                        {final_sha3_data_out[31:0], 32'd0};
-                    dp2_wmask = (addr_dp_2[2] == 1'b0) ? 8'h0F : 8'hF0;
-                end
-                else begin
-                    bram_wdata_dp_2 = final_sha3_data_out;
+                    if (sample_mode == 2'd2 && !is_e_matrix_reg) begin
+                        bram_wdata_dp_2 = (addr_dp_2[2] == 1'b0) ?
+                            {32'd0, final_sha3_data_out[31:0]} :
+                            {final_sha3_data_out[31:0], 32'd0};
+                        dp2_wmask = (addr_dp_2[2] == 1'b0) ? 8'h0F : 8'hF0;
+                    end
+                    else begin
+                        bram_wdata_dp_2 = final_sha3_data_out;
+                    end
                 end
             end
         end
@@ -475,32 +511,32 @@ module FACE_TOP(
             hash_buffer_sel <= 1'b0;
         end
         else begin
-            if (FUNC == `systolic_addrset_FUNC && OPCODE == `SYSOPCODE) begin
-                case (setaddr)
-                    2'b00: BASE_ADDR_LEFT <= {13'd0, BASE_ADDR};
-                    2'b01: BASE_ADDR_RIGHT <= {13'd0, BASE_ADDR};
-                    2'b10: BASE_ADDR_ADDSRC <= {13'd0, BASE_ADDR};
-                    2'b11: BASE_ADDR_SAVE <= {13'd0, BASE_ADDR};
+            if (FUNC_SYS == `systolic_addrset_FUNC && OPCODE_SYS == `SYSOPCODE) begin
+                case (setaddr_sys)
+                    2'b00: BASE_ADDR_LEFT <= {13'd0, BASE_ADDR_SYS};
+                    2'b01: BASE_ADDR_RIGHT <= {13'd0, BASE_ADDR_SYS};
+                    2'b10: BASE_ADDR_ADDSRC <= {13'd0, BASE_ADDR_SYS};
+                    2'b11: BASE_ADDR_SAVE <= {13'd0, BASE_ADDR_SYS};
                     default: ;
                 endcase
             end
 
-            if (FUNC == `systolic_calc_FUNC && OPCODE == `SYSOPCODE) begin
+            if (FUNC_SYS == `systolic_calc_FUNC && OPCODE_SYS == `SYSOPCODE) begin
                 if (!systolic_busy || 1'b1) begin
-                    ctrl_mode_REG <= ctrl_mode;
-                    inpack_REG <= instr[24];
-                    inpack_right_REG <= instr[25];
-                    addsrc_unpack_REG <= instr[26];
-                    outpack_REG <= instr[23];
+                    ctrl_mode_REG <= ctrl_mode_sys;
+                    inpack_REG <= instr_sys[24];
+                    inpack_right_REG <= instr_sys[25];
+                    addsrc_unpack_REG <= instr_sys[26];
+                    outpack_REG <= instr_sys[23];
                     calc_init <= 1'b1;
-                    MATRIX_SIZE <= instr[22:12];
+                    MATRIX_SIZE <= instr_sys[22:12];
                 end
             end
             else begin
                 calc_init <= 1'b0;
             end
 
-            if (FUNC == `systolic_bufswap_FUNC && OPCODE == `SYSOPCODE) begin
+            if (FUNC_BARRIER == `systolic_bufswap_FUNC && OPCODE_BARRIER == `SYSOPCODE) begin
                 hash_buffer_sel <= ~hash_buffer_sel;
             end
         end
@@ -543,16 +579,16 @@ module FACE_TOP(
             sampling_wen <= 1'b0;
         end
         else begin
-            if (OPCODE == `SHAOPCODE) begin
-                case (FUNC)
+            if (OPCODE_SHA == `SHAOPCODE) begin
+                case (FUNC_SHA)
                     `SHAKE_seedaddrset_FUNC: begin
-                        SEED_BASE_ADDR <= {17'd0, instr[24:10]};
-                        shakemode <= instr[25];
-                        seedram_id <= instr[26];
+                        SEED_BASE_ADDR <= {17'd0, instr_sha[24:10]};
+                        shakemode <= instr_sha[25];
+                        seedram_id <= instr_sha[26];
                     end
                     `SHAKE_seedset_FUNC: begin
-                        absorb_num <= instr[17:10];
-                        last_block_bytes <= instr[25:18];
+                        absorb_num <= instr_sha[17:10];
+                        last_block_bytes <= instr_sha[25:18];
                         sha3_start <= 1'b1;
                     end
                     `SHAKE_squeezeonce_FUNC: begin
@@ -560,28 +596,28 @@ module FACE_TOP(
                     end
                     `SHAKE_absorb_FUNC: begin
                         sha3_absorb <= 1'b1;
-                        seg_absorb_num <= instr[17:10];
-                        last_block_words <= instr[22:18];
+                        seg_absorb_num <= instr_sha[17:10];
+                        last_block_words <= instr_sha[22:18];
                     end
                     `SHAKE_gen_A_FUNC: begin
                         sample_mode <= 2'd1;
-                        frodo_mode_reg <= instr[31:30];
+                        frodo_mode_reg <= instr_sha[31:30];
                     end
                     `SHAKE_gen_SE_FUNC: begin
                         sampling_wen <= 1'b1;
-                        dump_BASE_addr <= {instr[22:10], 2'b0};
-                        dumpram_id <= instr[24];
-                        is_e_matrix_reg <= instr[23];
+                        dump_BASE_addr <= {instr_sha[22:10], 2'b0};
+                        dumpram_id <= instr_sha[24];
+                        is_e_matrix_reg <= instr_sha[23];
                         sample_mode <= 2'd2;
-                        frodo_mode_reg <= instr[31:30];
-                        sha3_sample_addr <= instr[29:25];
+                        frodo_mode_reg <= instr_sha[31:30];
+                        sha3_sample_addr <= instr_sha[29:25];
                     end
                     `SHAKE_dumpaword_FUNC: begin
                         sampling_wen <= 1'b1;
-                        dump_BASE_addr <= instr[24:10];
-                        dumpram_id <= instr[30];
+                        dump_BASE_addr <= instr_sha[24:10];
+                        dumpram_id <= instr_sha[30];
                         sample_mode <= 2'd0;
-                        sha3_sample_addr <= instr[29:25];
+                        sha3_sample_addr <= instr_sha[29:25];
                     end
                     `SHAKE_absorb_genA_FUNC: begin
                         sha3_start <= 1'b1;
@@ -674,28 +710,28 @@ module FACE_TOP(
         else begin
             genA_loop_done_pulse <= 1'b0;
 
-            if (OPCODE == `SHAOPCODE) begin
-                case (FUNC)
+            if (OPCODE_SHA == `SHAOPCODE) begin
+                case (FUNC_SHA)
                     `SHAKE_seedset_FUNC: begin
                         absorb_genA_active <= 1'b0;
                     end
                     `SHAKE_gen_A_FUNC: begin
-                        genA_row_len_flag <= instr[29];
+                        genA_row_len_flag <= instr_sha[29];
                         genA_curr_addr <= 15'd0;
-                        row_index_reg <= instr[25:10];
-                        genA_work_row_index <= instr[25:10];
+                        row_index_reg <= instr_sha[25:10];
+                        genA_work_row_index <= instr_sha[25:10];
                         genA_row_idx <= 2'd0;
                         genA_word_idx <= 9'd0;
                         genA_sample_offset <= 5'd0;
-                        genA_row_stride <= instr[29] ? 12'd1952 : 12'd2688;
+                        genA_row_stride <= instr_sha[29] ? 12'd1952 : 12'd2688;
                         genA_loop_active <= 1'b1;
                         genA_loop_state <= GENA_ROW_PREP;
                     end
                     `SHAKE_absorb_genA_FUNC: begin
-                        row_index_reg <= instr[25:10];
-                        block_num <= instr[29:26];
-                        absorb_genA_pad_sel <= instr[30];
-                        MATRIX_sign <= instr[31];
+                        row_index_reg <= instr_sha[25:10];
+                        block_num <= instr_sha[29:26];
+                        absorb_genA_pad_sel <= instr_sha[30];
+                        MATRIX_sign <= instr_sha[31];
                         absorb_genA_active <= 1'b1;
                         absorb_genA_state <= 4'd1;
                         genA_loop_active <= 1'b0;
@@ -828,7 +864,7 @@ module FACE_TOP(
                 systolic_busy <= prebusy[1];
             end
 
-            if (((sha3_ready_rise && OPCODE != `SHAOPCODE && !sha3_squeezeonce) ||sampling_wen_d || sha3_wait_cmd) && !genA_loop_active) begin
+            if (((sha3_ready_rise && OPCODE_SHA != `SHAOPCODE && !sha3_squeezeonce) ||sampling_wen_d || sha3_wait_cmd) && !genA_loop_active) begin
                 sha3busy <= 1'b0;
             end
             else if (genA_loop_done_pulse) begin
