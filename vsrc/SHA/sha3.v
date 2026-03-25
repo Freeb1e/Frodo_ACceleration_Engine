@@ -211,10 +211,6 @@ module sha3(    input wire          clk,
         if (w)
           blk[addr[7:3]] <= din_swap;
      end
-//======debug==========
-wire [4:0] debug_addr;
-assign debug_addr = addr[7:3];
 
 endmodule // sha3
 /* verilator lint_on WIDTH */
-//======================================================================

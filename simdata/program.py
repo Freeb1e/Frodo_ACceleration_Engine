@@ -186,6 +186,6 @@ def specialinput():
     face.save("simdata/test.asm")
 if __name__ == "__main__":
     # generate_decap_c_minus_bs()
-    # generate_keygen()
+    #  generate_keygen()
      generate_encap()
     # specialinput()

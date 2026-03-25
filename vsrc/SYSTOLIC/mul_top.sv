@@ -7,7 +7,7 @@ module mul_top(
         input logic [1:0] ctrl_mode, // 00:AS 01:SB 10:BS 11:SA
         input logic inpack,   // 读取时对16bit元素高低字节交换(unpack)
         input logic inpack_right, // 读取时对右矩阵数据进行16bit元素高低字节交换(unpack)
-    input logic addsrc_unpack, // 对累加源(addsrc)读取值进行16bit元素高低字节交换(unpack)
+        input logic addsrc_unpack, // 对累加源(addsrc)读取值进行16bit元素高低字节交换(unpack)
         input logic outpack,  // 输出时对16bit元素高低字节交换(pack)
 
         input logic [63:0] bram_data_1,
@@ -19,7 +19,7 @@ module mul_top(
         input logic [31:0] BASE_ADDR_ADDSRC,
         input logic [31:0] BASE_ADDR_SAVE,
         input logic [10:0] MATRIX_SIZE,
-        
+
         output logic [31:0] bram_addr_1,
         output logic [31:0] bram_addr_2,
         output logic [31:0] bram_addr_3,
@@ -35,11 +35,11 @@ module mul_top(
     // inpack: 对读取的左矩阵数据进行16bit元素高低字节交换
     logic [63:0] data_left_unpacked;
     assign data_left_unpacked = inpack ? {
-        data_left[55:48], data_left[63:56], 
-        data_left[39:32], data_left[47:40], 
-        data_left[23:16], data_left[31:24], 
-        data_left[7:0],   data_left[15:8]   
-    } : data_left;
+               data_left[55:48], data_left[63:56],
+               data_left[39:32], data_left[47:40],
+               data_left[23:16], data_left[31:24],
+               data_left[7:0],   data_left[15:8]
+           } : data_left;
     logic [63:0] data_right_unpacked;
     assign data_right_unpacked = inpack_right ? {
                data_right[55:48], data_right[63:56],
@@ -78,7 +78,7 @@ module mul_top(
                  .rst_n          	(rst_n           ),
                  .ctrl_mode     	(ctrl_mode      ),
                  .calc_init      	(calc_init       ),
-   
+
                  .BASE_ADDR_LEFT    (BASE_ADDR_LEFT    ),
                  .BASE_ADDR_RIGHT   (BASE_ADDR_RIGHT   ),
                  .BASE_ADDR_ADDSRC  (BASE_ADDR_ADDSRC  ),
@@ -179,20 +179,20 @@ module mul_top(
 
     always_comb begin
         case(current_state)
-        AS_CALC: begin
-            set_addr=(ctrl_mode == SB) ? bram_addr_1[2] : bram_addr_2[2];
-        end
-        AS_SAVE: begin
-            set_addr=bram_addr_1[2];
-        end
-        SA_LOADWEIGHT: begin
-            set_addr=bram_addr_1[2];
-        end
-        SA_CALC: begin
-            set_addr=bram_addr_1[2];
-        end
-        default:
-        set_addr=1'b0;
+            AS_CALC: begin
+                set_addr=(ctrl_mode == SB) ? bram_addr_1[2] : bram_addr_2[2];
+            end
+            AS_SAVE: begin
+                set_addr=bram_addr_1[2];
+            end
+            SA_LOADWEIGHT: begin
+                set_addr=bram_addr_1[2];
+            end
+            SA_CALC: begin
+                set_addr=bram_addr_1[2];
+            end
+            default:
+                set_addr=1'b0;
         endcase
     end
     assign transposition_mode_3 = transposition_slect ? 1'b1 : 1'b0;
@@ -286,15 +286,16 @@ module mul_top(
     logic [4*16-1:0] sum_out_mux;
     logic adder_sub_en;
     assign data_adder_unpacked = addsrc_unpack ? {
-        data_adder[55:48], data_adder[63:56],
-        data_adder[39:32], data_adder[47:40],
-        data_adder[23:16], data_adder[31:24],
-        data_adder[7:0],   data_adder[15:8]
-    } : data_adder;
+               data_adder[55:48], data_adder[63:56],
+               data_adder[39:32], data_adder[47:40],
+               data_adder[23:16], data_adder[31:24],
+               data_adder[7:0],   data_adder[15:8]
+           } : data_adder;
     always_comb begin
-        if(current_state == SA_CALC)begin
+        if(current_state == SA_CALC) begin
             sum_out_mux = sum_out_transposed;
-        end else begin
+        end
+        else begin
             sum_out_mux = sum_out;
         end
     end
@@ -322,7 +323,8 @@ module mul_top(
         // outpack: 对输出数据进行16bit元素高低字节交换
         if(outpack) begin
             bram_savedata = {sum4[7:0], sum4[15:8], sum3[7:0], sum3[15:8], sum2[7:0], sum2[15:8], sum1[7:0], sum1[15:8]};
-        end else begin
+        end
+        else begin
             bram_savedata = {sum4, sum3, sum2, sum1};
         end
     end

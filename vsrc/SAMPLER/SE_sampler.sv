@@ -1,13 +1,11 @@
 `include "define.sv"
 
 module SE_sampler (
-    input  logic [1:0]  frodo_mode,  // 00: 640, 01: 976, 10: 1344
+    input  logic [1:0]  frodo_mode,  // 01: 976, 10: 1344
     input  logic        is_e_matrix, // 0: S matrix (8-bit), 1: E matrix (16-bit)
     input  logic [63:0] shake_data,
     output logic [63:0] se_data
 );
-    // CDT tables...
-    logic [15:0] CDT_640 [0:12] = '{16'd4643, 16'd13363, 16'd20579, 16'd25843, 16'd29227, 16'd31145, 16'd32103, 16'd32525, 16'd32689, 16'd32745, 16'd32762, 16'd32766, 16'd32767};
     logic [15:0] CDT_976 [0:10] = '{16'd5638, 16'd15915, 16'd23689, 16'd28571, 16'd31116, 16'd32217, 16'd32613, 16'd32731, 16'd32760, 16'd32766, 16'd32767};
     logic [15:0] CDT_1344 [0:6] = '{16'd9142, 16'd23462, 16'd30338, 16'd32361, 16'd32725, 16'd32765, 16'd32767};
 
@@ -28,17 +26,51 @@ module SE_sampler (
             always_comb begin
                 e_val = '0;
                 case (frodo_mode)
-                    2'b00: begin
-                        for (int j = 0; j < 13; j = j + 1)
-                            if (z > CDT_640[j][14:0]) e_val = e_val + 16'd1;
-                    end
                     2'b01: begin
-                        for (int j = 0; j < 11; j = j + 1)
-                            if (z > CDT_976[j][14:0]) e_val = e_val + 16'd1;
+                        if (z > CDT_976[5][14:0]) begin
+                            if (z > CDT_976[8][14:0]) begin
+                                if (z > CDT_976[9][14:0]) begin
+                                    e_val = z > CDT_976[10][14:0] ? 16'd11 : 16'd10;
+                                end else begin
+                                    e_val = 16'd9;
+                                end
+                            end else begin
+                                if (z > CDT_976[6][14:0]) begin
+                                    e_val = z > CDT_976[7][14:0] ? 16'd8 : 16'd7;
+                                end else begin
+                                    e_val = 16'd6;
+                                end
+                            end
+                        end else begin
+                            if (z > CDT_976[2][14:0]) begin
+                                if (z > CDT_976[3][14:0]) begin
+                                    e_val = z > CDT_976[4][14:0] ? 16'd5 : 16'd4;
+                                end else begin
+                                    e_val = 16'd3;
+                                end
+                            end else begin
+                                if (z > CDT_976[0][14:0]) begin
+                                    e_val = z > CDT_976[1][14:0] ? 16'd2 : 16'd1;
+                                end else begin
+                                    e_val = 16'd0;
+                                end
+                            end
+                        end
                     end
                     2'b10: begin
-                        for (int j = 0; j < 7; j = j + 1)
-                            if (z > CDT_1344[j][14:0]) e_val = e_val + 16'd1;
+                        if (z > CDT_1344[3][14:0]) begin
+                            if (z > CDT_1344[5][14:0]) begin
+                                e_val = z > CDT_1344[6][14:0] ? 16'd7 : 16'd6;
+                            end else begin
+                                e_val = z > CDT_1344[4][14:0] ? 16'd5 : 16'd4;
+                            end
+                        end else begin
+                            if (z > CDT_1344[1][14:0]) begin
+                                e_val = z > CDT_1344[2][14:0] ? 16'd3 : 16'd2;
+                            end else begin
+                                e_val = z > CDT_1344[0][14:0] ? 16'd1 : 16'd0;
+                            end
+                        end
                     end
                     default: ;
                 endcase
