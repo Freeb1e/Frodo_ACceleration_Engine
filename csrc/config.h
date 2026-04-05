@@ -1,10 +1,10 @@
-#define MAX_SIM_TIME 6000000
+#define MAX_SIM_TIME 4000000
 
-//  #define KEYGEN_TEST 
-#define ENCAP_TEST 
+ #define KEYGEN_TEST 
+// #define ENCAP_TEST 
 // #define DECAP_TEST 
-
- #define ENABLE_INTERACTIVE_MEMORY_QUERY
+//  #define ENCAP976_TEST
+//  #define ENABLE_INTERACTIVE_MEMORY_QUERY
 // #define TRACE_ON
 
 // KeyGen randomness: s || seedSE || z, 112 bytes.

@@ -282,6 +282,31 @@ void decap_init(){
     }
 }
 
+void Encap_init_976(){
+    test_file = "./simdata/raminit/keygen976.bin";
+    if(load_bin_to_ram(test_file, sp_ram, RAM_SIZE, 0))
+    {
+        printf("Loaded %s into SP_RAM successfully.\n", test_file);
+    }
+    else
+    {
+        printf("Failed to load %s into SP_RAM.\n", test_file);
+    }
+    std::vector<uint8_t> encap_random;
+    if (!parse_hex_to_bytes("Encap randomness", ENCAP_RANDOM_HEX, encap_random)) {
+        printf("[INIT Error] Encap_init randomness parse failed.\n");
+        exit(EXIT_FAILURE);
+    }
+    if (ENCAP_RANDOM_LEN != 0 && encap_random.size() != ENCAP_RANDOM_LEN) {
+        printf("[INIT Error] Encap randomness length mismatch, got %zu bytes, expected %u bytes\n",
+               encap_random.size(), (uint32_t)ENCAP_RANDOM_LEN);
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < 9; ++i) {
+        pmem_write(32280 + i * 8, 0, 0x4242424242424242, 0xFF); // mu
+    }
+}
+
 void init_instram(){
     bool load_bin_to_ram(const char* filename, uint8_t* ram_ptr, uint32_t max_size, uint32_t offset);
     load_bin_to_ram("./simdata/firmware.bin",PC_ROM,PC_ROM_SIZE, 0);

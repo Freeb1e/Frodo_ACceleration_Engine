@@ -303,15 +303,15 @@ bool load_bin_to_ram_protect(const char* filename, uint8_t* ram_ptr, uint32_t ma
     
     return true;
 }
-
+#ifdef ENCAP_TEST
 void frodo_v_encodeu_add() {
     // 固定映射：V(c2) 位于 dp_ram[4032*8], u 位于 sp_ram[4036*8]
     const uint32_t V_BASE_ADDR = 4032u * 8u;
     const uint32_t U_BASE_ADDR = 4036u * 8u;
     const uint32_t C_BASE_ADDR = 4032u * 8u; // 原地写回 c2
+    const uint32_t EXTRACTED_BITS = 4u; // Frodo1344: B=4
 
     const uint32_t NBAR = 8u;
-    const uint32_t EXTRACTED_BITS = 4u; // Frodo1344: B=4
     const uint32_t LOGQ = 16u;          // q = 2^16
 
     const uint32_t COEFFS = NBAR * NBAR;             // 64
@@ -348,7 +348,65 @@ void frodo_v_encodeu_add() {
         dp_ram[C_BASE_ADDR + off + 1] = c_le[off];
     }
 }
+# else 
+void frodo_v_encodeu_add() {
+    // 976/1344 的 V、u、C 布局不同，按编译目标选择。
+#if defined(ENCAP976_TEST)
+    const uint32_t V_BASE_ADDR = 26368u;
+    const uint32_t U_BASE_ADDR = 32280u;
+    const uint32_t C_BASE_ADDR = 26368u; // 原地写回 c2
+    const uint32_t EXTRACTED_BITS = 3u;  // Frodo976: B=3
+#else
+    const uint32_t V_BASE_ADDR = 4032u * 8u;
+    const uint32_t U_BASE_ADDR = 4036u * 8u;
+    const uint32_t C_BASE_ADDR = 4032u * 8u; // 原地写回 c2
+    const uint32_t EXTRACTED_BITS = 4u;      // Frodo1344: B=4
+#endif
 
+    const uint32_t NBAR = 8u;
+    const uint32_t LOGQ = 16u;          // q = 2^16
+
+    const uint32_t COEFFS = NBAR * NBAR;             // 64
+    const uint32_t U_BYTES = (COEFFS * EXTRACTED_BITS + 7u) / 8u;
+    const uint32_t V_BYTES = COEFFS * 2u;            // 128
+
+    if ((U_BASE_ADDR + U_BYTES > RAM_SIZE) ||
+        (V_BASE_ADDR + V_BYTES > RAM_SIZE) ||
+        (C_BASE_ADDR + V_BYTES > RAM_SIZE)) {
+        MEM_ERR_PRINTF("[DPI Error] frodo_v_encodeu_add out of bounds\n");
+        return;
+    }
+
+    uint8_t c_le[V_BYTES];
+
+    for (uint32_t i = 0; i < COEFFS; ++i) {
+        const uint32_t bit_pos = i * EXTRACTED_BITS;
+        const uint32_t byte_pos = bit_pos >> 3;
+        const uint32_t bit_off = bit_pos & 0x7u;
+        uint32_t window = (uint32_t)sp_ram[U_BASE_ADDR + byte_pos];
+        if (bit_off + EXTRACTED_BITS > 8u) {
+            window |= ((uint32_t)sp_ram[U_BASE_ADDR + byte_pos + 1u]) << 8;
+        }
+        const uint16_t mu_i = (uint16_t)((window >> bit_off) & ((1u << EXTRACTED_BITS) - 1u));
+        const uint16_t enc_i = (uint16_t)(mu_i << (LOGQ - EXTRACTED_BITS));
+
+        const uint32_t v_off = V_BASE_ADDR + (i << 1);
+        const uint16_t v_i = (uint16_t)dp_ram[v_off] | ((uint16_t)dp_ram[v_off + 1] << 8);
+        const uint16_t c_i = (uint16_t)(v_i + enc_i);
+
+        const uint32_t c_off = (i << 1);
+        c_le[c_off] = (uint8_t)(c_i & 0xFFu);
+        c_le[c_off + 1] = (uint8_t)(c_i >> 8);
+    }
+
+    // Frodo976 ct 需要 Pack(C)：逐 16-bit 交换后写回，供 c2/ss 路径直接使用。
+    for (uint32_t i = 0; i < COEFFS; ++i) {
+        const uint32_t off = (i << 1);
+        dp_ram[C_BASE_ADDR + off] = c_le[off + 1];
+        dp_ram[C_BASE_ADDR + off + 1] = c_le[off];
+    }
+}
+#endif
 void dump_ALL_BRAM(){
      const char* dump_file = "./output/SP_RAM.bin";
     if(dump_ram_to_bin(dump_file, sp_ram, RAM_SIZE,0, RAM_SIZE))

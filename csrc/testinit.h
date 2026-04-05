@@ -6,5 +6,6 @@ extern void Encap_init();
 extern void Encapss_init();
 extern void decap_init();
 extern void init_instram();
+extern void Encap_init_976();
 extern const char* test_file;
 extern const char* dump_file;

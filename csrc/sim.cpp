@@ -46,6 +46,8 @@ int main(int argc, char **argv, char **env)
     Encap_init();
 #elif defined(KEYGEN_TEST)
     Keygen_init();
+#elif defined(ENCAP976_TEST)
+    Encap_init_976();
 #else
     std::cout << "[SIM] No test macro enabled, skip test init." << std::endl;
 #endif
@@ -63,7 +65,9 @@ int main(int argc, char **argv, char **env)
     print_pkh();
 #elif defined(ENCAP_TEST)
     print_ss();
-#endif
+#elif defined(ENCAP976_TEST)
+    print_ss();
+    #endif
 
     dump_ALL_BRAM();
 
@@ -79,6 +83,7 @@ int main(int argc, char **argv, char **env)
 extern "C" void test_print_simtime()
 {
     std::cout << "[DPIC Debug] sim_time = " << sim_time << std::endl;
+    std::cout << "[DPIC Debug] cycles = " << sim_time / 2 << std::endl;
 }
 
 void tick()
