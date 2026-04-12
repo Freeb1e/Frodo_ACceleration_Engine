@@ -18,11 +18,12 @@ module systolic_top#(
     logic [DATA_WIDTH-1:0] b_reg_array [0:SYSTOLIC_WIDTH-1][0:SYSTOLIC_WIDTH-1];
     logic [DATA_WIDTH-1:0] a_reg_delayed [0:SYSTOLIC_WIDTH-1];
     logic [DATA_WIDTH-1:0] b_reg_delayed [0:SYSTOLIC_WIDTH-1];
-    assign a_reg_delayed[0] = a_in[DATA_WIDTH-1:0];
-    assign b_reg_delayed[0] = b_in[DATA_WIDTH-1:0];
     logic [SYSTOLIC_WIDTH*DATA_WIDTH-1:0] a_in;
     logic [SYSTOLIC_WIDTH*DATA_WIDTH-1:0] b_in;
     logic [SYSTOLIC_WIDTH*SUM_WIDTH-1:0] sum_in;
+    logic [SUM_WIDTH-1:0] sum_out_array [0:SYSTOLIC_WIDTH-1];
+    assign a_reg_delayed[0] = a_in[DATA_WIDTH-1:0];
+    assign b_reg_delayed[0] = b_in[DATA_WIDTH-1:0];
 
     always_comb begin
         for (int k = 0; k < SYSTOLIC_WIDTH; k = k + 1) begin
@@ -96,7 +97,6 @@ module systolic_top#(
 
 
     genvar p;
-    logic [SUM_WIDTH-1:0] sum_out_array [0:SYSTOLIC_WIDTH-1];
     generate
        for(p=0;p<SYSTOLIC_WIDTH-1;p=p+1) begin:output_align_loop
             delay_reg #(
@@ -132,6 +132,21 @@ module systolic_pe#(
         input logic enable
     );
 
+    logic [DATA_WIDTH-1:0] mul_a;
+    logic [DATA_WIDTH-1:0] mul_b;
+    logic [2*DATA_WIDTH-1:0] mul_p;
+    logic [SUM_WIDTH-1:0] mul_low;
+    logic [SUM_WIDTH-1:0] mac_acc_src;
+    (* use_dsp = "no" *) logic [SUM_WIDTH-1:0] mac_add_res;
+
+    // Use one shared multiplier datapath for both operating modes.
+    assign mul_a = a_wire;
+    assign mul_b = (mode == 1'b1) ? b_wire : b_reg;
+    assign mul_p = mul_a * mul_b;
+    assign mul_low = mul_p[SUM_WIDTH-1:0];
+    assign mac_acc_src = (mode == 1'b1) ? sum_out : sum_wire;
+    assign mac_add_res = mac_acc_src + mul_low;
+
     always_ff@(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             a_reg<= '0;
@@ -143,7 +158,7 @@ module systolic_pe#(
                 if(state==1'b1) begin
                     a_reg<= a_wire;
                     b_reg<= b_wire;
-                    sum_out<= sum_out + a_wire* b_wire;
+                    sum_out<= mac_add_res;
 
                 end
                 else begin
@@ -159,7 +174,7 @@ module systolic_pe#(
                 end
                 else begin
                     a_reg<= a_wire;
-                    sum_out<= sum_wire + a_wire* b_reg;
+                    sum_out<= mac_add_res;
                 end
             end
         end
